@@ -1,44 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { Menu } from 'lucide-react';
+import { useAppSelector } from '@/store';
 import { getAvatarLetters } from '@/utils/avatar';
-
-interface UserData {
-  email: string;
-  raw_user_meta_data: {
-    name: string;
-    job_title?: string;
-  };
-}
 
 interface NavbarProps {
   onMenuClick: () => void;
 }
 
 export default function Navbar({ onMenuClick }: NavbarProps) {
-  const [user, setUser] = useState<UserData | null>(null);
-
-  useEffect(() => {
-    async function fetchUserData() {
-      try {
-        const response = await fetch('/auth/v1/user', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': 'YOUR_API_KEY'
-          },
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setUser(data);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    }
-    fetchUserData();
-  }, []);
+  const { data: user, loading } = useAppSelector((state) => state.user);
 
   const name = user?.raw_user_meta_data?.name || 'Mahmoud Taha';
   const jobTitle = user?.raw_user_meta_data?.job_title || 'PROJECT MANAGER';
@@ -57,10 +28,16 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="text-right">
-          <div className="text-sm font-bold text-[#0A192F]">{name}</div>
-          <div className="text-[10px] font-bold text-[#0046AD] uppercase tracking-wider">{jobTitle}</div>
-        </div>
+        {loading ? (
+          <div className="h-4 w-24 bg-[#CBD5E1]/50 animate-pulse rounded" />
+        ) : (
+          <div className="text-right">
+            <div className="text-sm font-bold text-[#0A192F]">{name}</div>
+            <div className="text-[10px] font-bold text-[#0046AD] uppercase tracking-wider">
+              {jobTitle}
+            </div>
+          </div>
+        )}
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0046AD] text-sm font-bold text-white tracking-wider">
           {avatarLetters}
         </div>

@@ -20,9 +20,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           setIsOpenMobile={setIsOpenMobile}
         />
 
-        <main className="flex-1 p-6 transition-all duration-300">
-          {children}
-        </main>
+        <main className="flex-1 p-6 transition-all duration-300">{children}</main>
       </div>
     </div>
   );

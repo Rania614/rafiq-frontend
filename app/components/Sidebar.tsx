@@ -2,7 +2,17 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Folder, Layers, CheckSquare, Users, Info, ChevronLeft, ChevronRight, LogOut, X } from 'lucide-react';
+import {
+  Folder,
+  Layers,
+  CheckSquare,
+  Users,
+  Info,
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+  X,
+} from 'lucide-react';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -11,7 +21,12 @@ interface SidebarProps {
   setIsOpenMobile: (val: boolean) => void;
 }
 
-export default function Sidebar({ isCollapsed, setIsCollapsed, isOpenMobile, setIsOpenMobile }: SidebarProps) {
+export default function Sidebar({
+  isCollapsed,
+  setIsCollapsed,
+  isOpenMobile,
+  setIsOpenMobile,
+}: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -69,14 +84,17 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isOpenMobile, set
                 key={item.name}
                 href={item.href}
                 className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors
-                  ${isActive 
-                    ? 'bg-[#E2ECFF] text-[#0046AD]' 
-                    : 'text-[#4A5568] hover:bg-[#F4F7FF] hover:text-[#0A192F]'
+                  ${
+                    isActive
+                      ? 'bg-[#E2ECFF] text-[#0046AD]'
+                      : 'text-[#4A5568] hover:bg-[#F4F7FF] hover:text-[#0A192F]'
                   }
                 `}
               >
                 <Icon size={18} className="shrink-0" />
-                <span className={`transition-opacity duration-200 ${isCollapsed ? 'md:hidden opacity-0' : 'opacity-100'}`}>
+                <span
+                  className={`transition-opacity duration-200 ${isCollapsed ? 'md:hidden opacity-0' : 'opacity-100'}`}
+                >
                   {item.name}
                 </span>
               </Link>
@@ -91,7 +109,9 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isOpenMobile, set
             className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-[#D31818] hover:bg-red-50 transition-colors"
           >
             <LogOut size={18} className="shrink-0" />
-            <span className={`transition-opacity duration-200 ${isCollapsed ? 'md:hidden opacity-0' : 'opacity-100'}`}>
+            <span
+              className={`transition-opacity duration-200 ${isCollapsed ? 'md:hidden opacity-0' : 'opacity-100'}`}
+            >
               Logout
             </span>
           </button>
@@ -101,8 +121,14 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isOpenMobile, set
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="hidden w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-[#4A5568] hover:bg-[#F4F7FF] hover:text-[#0A192F] md:flex"
           >
-            {isCollapsed ? <ChevronRight size={18} className="shrink-0" /> : <ChevronLeft size={18} className="shrink-0" />}
-            <span className={`transition-opacity duration-200 ${isCollapsed ? 'md:hidden opacity-0' : 'opacity-100'}`}>
+            {isCollapsed ? (
+              <ChevronRight size={18} className="shrink-0" />
+            ) : (
+              <ChevronLeft size={18} className="shrink-0" />
+            )}
+            <span
+              className={`transition-opacity duration-200 ${isCollapsed ? 'md:hidden opacity-0' : 'opacity-100'}`}
+            >
               Collapse
             </span>
           </button>
