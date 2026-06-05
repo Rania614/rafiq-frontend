@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 @theme {
-  /* 🎨 Action Blue & Tonal Range */
+  /* Action Blue & Tonal Range */
   --color-primary: #0046ad;
   --color-primary-hover: #0056d2;
   --color-surface-highest: #e2ecff;
@@ -12,17 +12,17 @@
   --color-neutral-muted: #4a5568;
   --color-neutral-light: #cbd5e1;
 
-  /* 🟢🔴 Semantic */
+  /*  Semantic */
   --color-success: #70ffb5;
   --color-error: #d31818;
   --color-warning: #ffb000;
 
-  /* 🔤 Typography (الخطوط المستخدمة في الديزاين) */
+  /*  Typography (الخطوط المستخدمة في الديزاين) */
   --font-display: 'Plus Jakarta Sans', 'Inter', 'sans-serif';
   --font-body: 'Inter', 'sans-serif';
 }
 
-/* 🏁 تطبيق الـ Global Styles بناءً على الـ Style Guide */
+/* تطبيق الـ Global Styles بناءً على الـ Style Guide */
 body {
   background-color: #ffffff;
   color: var(--color-neutral-dark);

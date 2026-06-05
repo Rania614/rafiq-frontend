@@ -52,6 +52,20 @@ export default function Home() {
           Go to Sign Up Page
         </Link>
       </div>
+      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-sm border border-[#CBD5E1] text-center">
+        <div className="text-xs font-bold tracking-widest text-[#4A5568] uppercase mb-2">
+          ✦ Authentication (Day 3)
+        </div>
+        <p className="text-sm text-[#4A5568] mb-4">
+          Already have an account? Test the session and cookies storage.
+        </p>
+        <Link
+          href="/login"
+          className="inline-block w-full rounded-lg bg-[#E2ECFF] px-4 py-3 text-sm font-bold text-[#0046AD] transition-colors hover:opacity-90 shadow-sm"
+        >
+          Go to Login Page
+        </Link>
+      </div>
     </main>
   );
 }
