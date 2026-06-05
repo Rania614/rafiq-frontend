@@ -1,34 +1,36 @@
 @import "tailwindcss";
 
 @theme {
-  /* 🎨 1. الألوان (انقليها من ملف الفيجما) */
-  --color-primary-100: #e6f0ff;
-  --color-primary-500: #0066cc; /* مثال للون الأساسي */
-  --color-primary-900: #002244;
+  /* 🎨 Action Blue & Tonal Range */
+  --color-primary: #0046AD;
+  --color-primary-hover: #0056D2;
+  --color-surface-highest: #E2ECFF;
+  --color-surface-low: #F4F7FF;
   
-  --color-secondary: #ff9900; /* اللون الثانوي */
-  
-  --color-neutral-dark: #1a1a1a;  /* للنصوص الأساسية */
-  --color-neutral-light: #f9f9f9; /* للخلفيات */
+  /* 🖤 Slate Neutrals */
+  --color-neutral-dark: #0A192F;
+  --color-neutral-muted: #4A5568;
+  --color-neutral-light: #CBD5E1;
 
-  /* 🔤 2. الخطوط (Fonts) */
-  --font-display: "Inter", "sans-serif";
-  --font-body: "Roboto", "sans-serif";
+  /* 🟢🔴 Semantic */
+  --color-success: #70FFB5;
+  --color-error: #D31818;
+  --color-warning: #FFB000;
 
-  /* 📐 3. المسافات أو الـ Border Radius (لو الفيجما محدد حاجات مخصصة) */
-  --radius-custom: 12px;
-  
-  /* 🎬 4. الأنيميشن (إذا وُجد) */
-  --animate-fade-in: fade-in 0.3s ease-out;
+  /* 🔤 Typography (الخطوط المستخدمة في الديزاين) */
+  --font-display: "Plus Jakarta Sans", "Inter", "sans-serif";
+  --font-body: "Inter", "sans-serif";
 }
 
-/* هنا تقدري تحطي الـ Global Styles العادية بتاعة المشروع */
+/* 🏁 تطبيق الـ Global Styles بناءً على الـ Style Guide */
 body {
-  background-color: var(--color-neutral-light);
+  background-color: #FFFFFF;
   color: var(--color-neutral-dark);
   font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3 {
+h1, h2, h3, h4 {
   font-family: var(--font-display);
+  color: var(--color-neutral-dark);
 }
