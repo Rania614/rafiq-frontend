@@ -22,11 +22,13 @@ export const fetchCurrentUser = createAsyncThunk(
   'user/fetchCurrentUser',
   async (_, { rejectWithValue }) => {
     try {
+      const token = localStorage.getItem('access_token');
       const response = await fetch('/auth/v1/user', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           apikey: 'YOUR_API_KEY',
+          Authorization: `Bearer ${token || ''}`,
         },
       });
 
@@ -41,6 +43,29 @@ export const fetchCurrentUser = createAsyncThunk(
     }
   }
 );
+
+export const logoutUser = createAsyncThunk('user/logoutUser', async (_, { rejectWithValue }) => {
+  try {
+    const token = localStorage.getItem('access_token');
+
+    const response = await fetch('/auth/v1/logout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: 'YOUR_API_KEY',
+        Authorization: `Bearer ${token || ''}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Logout failed, please try again.');
+    }
+
+    return true;
+  } catch (error: any) {
+    return rejectWithValue(error.message || 'Logout failed, please try again.');
+  }
+});
 
 const userSlice = createSlice({
   name: 'user',
@@ -71,6 +96,9 @@ const userSlice = createSlice({
       })
       .addCase(fetchCurrentUser.rejected, (state, action) => {
         state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(logoutUser.rejected, (state, action) => {
         state.error = action.payload as string;
       });
   },

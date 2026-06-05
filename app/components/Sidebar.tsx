@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
   Folder,
@@ -10,7 +10,6 @@ import {
   Info,
   ChevronLeft,
   ChevronRight,
-  LogOut,
   X,
 } from 'lucide-react';
 
@@ -28,7 +27,6 @@ export default function Sidebar({
   setIsOpenMobile,
 }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
 
   const menuItems = [
     { name: 'Projects', href: '/project', icon: Folder },
@@ -37,10 +35,6 @@ export default function Sidebar({
     { name: 'Project Members', href: '/project/members', icon: Users },
     { name: 'Project Details', href: '/project/details', icon: Info },
   ];
-
-  const handleLogout = () => {
-    router.push('/login');
-  };
 
   return (
     <>
@@ -102,20 +96,7 @@ export default function Sidebar({
           })}
         </nav>
 
-        <div className="border-t border-[#CBD5E1]/60 p-4 space-y-1">
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-[#D31818] hover:bg-red-50 transition-colors"
-          >
-            <LogOut size={18} className="shrink-0" />
-            <span
-              className={`transition-opacity duration-200 ${isCollapsed ? 'md:hidden opacity-0' : 'opacity-100'}`}
-            >
-              Logout
-            </span>
-          </button>
-
+        <div className="border-t border-[#CBD5E1]/60 p-4">
           <button
             type="button"
             onClick={() => setIsCollapsed(!isCollapsed)}
