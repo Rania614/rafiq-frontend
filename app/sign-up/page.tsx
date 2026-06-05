@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Eye, EyeOff, Check, Circle } from 'lucide-react';
 
 const signUpSchema = z
@@ -253,9 +254,9 @@ export default function SignUpPage() {
 
         <div className="mt-6 text-center text-sm text-[#4A5568]">
           Already have an account?{' '}
-          <span className="font-semibold text-[#0046AD] cursor-pointer hover:underline">
+          <Link href="/login" className="font-semibold text-[#0046AD] hover:underline">
             Log in
-          </span>
+          </Link>
         </div>
       </div>
     </main>
