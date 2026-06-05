@@ -1,36 +1,39 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
   /* 🎨 Action Blue & Tonal Range */
-  --color-primary: #0046AD;
-  --color-primary-hover: #0056D2;
-  --color-surface-highest: #E2ECFF;
-  --color-surface-low: #F4F7FF;
-  
+  --color-primary: #0046ad;
+  --color-primary-hover: #0056d2;
+  --color-surface-highest: #e2ecff;
+  --color-surface-low: #f4f7ff;
+
   /* 🖤 Slate Neutrals */
-  --color-neutral-dark: #0A192F;
-  --color-neutral-muted: #4A5568;
-  --color-neutral-light: #CBD5E1;
+  --color-neutral-dark: #0a192f;
+  --color-neutral-muted: #4a5568;
+  --color-neutral-light: #cbd5e1;
 
   /* 🟢🔴 Semantic */
-  --color-success: #70FFB5;
-  --color-error: #D31818;
-  --color-warning: #FFB000;
+  --color-success: #70ffb5;
+  --color-error: #d31818;
+  --color-warning: #ffb000;
 
   /* 🔤 Typography (الخطوط المستخدمة في الديزاين) */
-  --font-display: "Plus Jakarta Sans", "Inter", "sans-serif";
-  --font-body: "Inter", "sans-serif";
+  --font-display: 'Plus Jakarta Sans', 'Inter', 'sans-serif';
+  --font-body: 'Inter', 'sans-serif';
 }
 
 /* 🏁 تطبيق الـ Global Styles بناءً على الـ Style Guide */
 body {
-  background-color: #FFFFFF;
+  background-color: #ffffff;
   color: var(--color-neutral-dark);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, h4 {
+h1,
+h2,
+h3,
+h4 {
   font-family: var(--font-display);
   color: var(--color-neutral-dark);
 }
