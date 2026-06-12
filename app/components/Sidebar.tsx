@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -11,13 +12,32 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  type LucideIcon,
 } from 'lucide-react';
+import {
+  clearCurrentProjectId,
+  getCurrentProjectId,
+  getProjectEditHref,
+  getProjectEpicsHref,
+  getProjectIdFromPath,
+  getProjectMembersHref,
+  getProjectTasksHref,
+} from '@/utils/project';
 
 interface SidebarProps {
   isCollapsed: boolean;
   setIsCollapsed: (val: boolean) => void;
   isOpenMobile: boolean;
   setIsOpenMobile: (val: boolean) => void;
+}
+
+interface MenuItem {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+  isActive: (pathname: string, projectId: string | null) => boolean;
+  onNavigate?: () => void;
+  requiresProject?: boolean;
 }
 
 export default function Sidebar({
@@ -27,13 +47,57 @@ export default function Sidebar({
   setIsOpenMobile,
 }: SidebarProps) {
   const pathname = usePathname();
+  const [storedProjectId, setStoredProjectId] = useState<string | null>(null);
 
-  const menuItems = [
-    { name: 'Projects', href: '/project', icon: Folder },
-    { name: 'Project Epics', href: '/project/epics', icon: Layers },
-    { name: 'Project Tasks', href: '/project/tasks', icon: CheckSquare },
-    { name: 'Project Members', href: '/project/members', icon: Users },
-    { name: 'Project Details', href: '/project/details', icon: Info },
+  useEffect(() => {
+    setStoredProjectId(getCurrentProjectId());
+  }, [pathname]);
+
+  const activeProjectId = getProjectIdFromPath(pathname) ?? storedProjectId;
+
+  const menuItems: MenuItem[] = [
+    {
+      name: 'Projects',
+      href: '/project',
+      icon: Folder,
+      isActive: (path) => path === '/project' || path === '/project/add',
+      onNavigate: () => {
+        clearCurrentProjectId();
+        setStoredProjectId(null);
+      },
+    },
+    {
+      name: 'Project Epics',
+      href: activeProjectId ? getProjectEpicsHref(activeProjectId) : '/project',
+      icon: Layers,
+      requiresProject: true,
+      isActive: (path, projectId) =>
+        Boolean(projectId && new RegExp(`^/project/${projectId}/epics(?:/new)?$`).test(path)),
+    },
+    {
+      name: 'Project Tasks',
+      href: activeProjectId ? getProjectTasksHref(activeProjectId) : '/project',
+      icon: CheckSquare,
+      requiresProject: true,
+      isActive: (path, projectId) =>
+        Boolean(projectId && new RegExp(`^/project/${projectId}/tasks$`).test(path)),
+    },
+    {
+      name: 'Project Members',
+      href: activeProjectId ? getProjectMembersHref(activeProjectId) : '/project',
+      icon: Users,
+      requiresProject: true,
+      isActive: (path, projectId) =>
+        Boolean(projectId && new RegExp(`^/project/${projectId}/members$`).test(path)),
+    },
+    {
+      name: 'Project Details',
+      href: activeProjectId ? getProjectEditHref(activeProjectId) : '/project',
+      icon: Info,
+      requiresProject: true,
+      isActive: (path, projectId) =>
+        Boolean(projectId && new RegExp(`^/project/${projectId}/edit$`).test(path)),
+    },
   ];
 
   return (
@@ -71,29 +135,28 @@ export default function Sidebar({
         <nav className="flex-1 space-y-1 px-4 py-4">
           {menuItems.map((item) => {
             const Icon = item.icon;
-            const isProjectSection =
-              pathname === '/project' ||
-              pathname === '/project/add' ||
-              /^\/project\/[^/]+\/edit$/.test(pathname);
-
-            const isActive =
-              pathname === item.href || (item.href === '/project' && isProjectSection);
+            const isActive = item.isActive(pathname, activeProjectId);
+            const isDisabled = item.requiresProject && !activeProjectId;
 
             return (
               <Link
                 key={item.name}
                 href={item.href}
+                onClick={item.onNavigate}
+                aria-disabled={isDisabled}
                 className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors
                   ${
                     isActive
                       ? 'bg-[#E2ECFF] text-[#0046AD]'
-                      : 'text-[#4A5568] hover:bg-[#F4F7FF] hover:text-[#0A192F]'
+                      : isDisabled
+                        ? 'text-[#CBD5E1] pointer-events-none'
+                        : 'text-[#4A5568] hover:bg-[#F4F7FF] hover:text-[#0A192F]'
                   }
                 `}
               >
                 <Icon size={18} className="shrink-0" />
                 <span
-                  className={`transition-opacity duration-200 ${isCollapsed ? 'md:hidden opacity-0' : 'opacity-100'}`}
+                  className={`whitespace-nowrap transition-opacity duration-200 ${isCollapsed ? 'md:hidden' : ''}`}
                 >
                   {item.name}
                 </span>
@@ -113,9 +176,7 @@ export default function Sidebar({
             ) : (
               <ChevronLeft size={18} className="shrink-0" />
             )}
-            <span
-              className={`transition-opacity duration-200 ${isCollapsed ? 'md:hidden opacity-0' : 'opacity-100'}`}
-            >
+            <span className={`whitespace-nowrap transition-opacity duration-200 ${isCollapsed ? 'md:hidden' : ''}`}>
               Collapse
             </span>
           </button>
