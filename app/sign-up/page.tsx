@@ -8,7 +8,12 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, Check, Circle } from 'lucide-react';
 import { saveAuthSession } from '@/utils/auth';
-import { supabaseAuthHeaders, supabaseAuthUrl } from '@/utils/supabase';
+import {
+  isSupabaseConfigured,
+  SUPABASE_CONFIGURATION_ERROR,
+  supabaseAuthHeaders,
+  supabaseAuthUrl,
+} from '@/utils/supabase';
 
 const signUpSchema = z
   .object({
@@ -72,6 +77,12 @@ export default function SignUpPage() {
   const onSubmit = async (values: SignUpFormValues) => {
     setIsLoading(true);
     setApiError(null);
+
+    if (!isSupabaseConfigured()) {
+      setApiError(SUPABASE_CONFIGURATION_ERROR);
+      setIsLoading(false);
+      return;
+    }
 
     const requestBody = {
       email: values.email,

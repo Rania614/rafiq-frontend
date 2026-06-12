@@ -8,7 +8,12 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
 import { saveAuthSession, parseSupabaseError } from '@/utils/auth';
-import { supabaseAuthHeaders, supabaseAuthUrl } from '@/utils/supabase';
+import {
+  isSupabaseConfigured,
+  SUPABASE_CONFIGURATION_ERROR,
+  supabaseAuthHeaders,
+  supabaseAuthUrl,
+} from '@/utils/supabase';
 
 // 🛑 1. الـ Zod Validation Schema الخاص بالـ Login
 const loginSchema = z.object({
@@ -38,6 +43,12 @@ export default function LoginPage() {
   const onSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
     setApiError(null);
+
+    if (!isSupabaseConfigured()) {
+      setApiError(SUPABASE_CONFIGURATION_ERROR);
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const response = await fetch(supabaseAuthUrl('/auth/v1/token?grant_type=password'), {
