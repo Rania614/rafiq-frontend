@@ -71,7 +71,13 @@ export default function Sidebar({
         <nav className="flex-1 space-y-1 px-4 py-4">
           {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href;
+            const isProjectSection =
+              pathname === '/project' ||
+              pathname === '/project/add' ||
+              /^\/project\/[^/]+\/edit$/.test(pathname);
+
+            const isActive =
+              pathname === item.href || (item.href === '/project' && isProjectSection);
 
             return (
               <Link
