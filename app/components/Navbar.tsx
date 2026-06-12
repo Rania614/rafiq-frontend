@@ -34,20 +34,9 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
   }, []);
 
   const handleLogout = async () => {
-    const result = await dispatch(logoutUser());
-
-    if (logoutUser.fulfilled.match(result)) {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-
-      sessionStorage.clear();
-
-      document.cookie = 'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-      document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-
-      dispatch(clearUser());
-      router.push('/login');
-    }
+    await dispatch(logoutUser());
+    dispatch(clearUser());
+    router.push('/login');
   };
 
   return (

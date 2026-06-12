@@ -7,6 +7,7 @@ import * as z from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, Check, Circle, ArrowLeft } from 'lucide-react';
+import { supabaseAuthHeaders, supabaseAuthUrl } from '@/utils/supabase';
 
 const resetPasswordSchema = z
   .object({
@@ -75,12 +76,9 @@ function ResetPasswordFormContent() {
     setErrorMessage(null);
 
     try {
-      await fetch('/auth/v1/user', {
+      await fetch(supabaseAuthUrl('/auth/v1/user'), {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: supabaseAuthHeaders(token),
         body: JSON.stringify({ password: values.password }),
       });
 

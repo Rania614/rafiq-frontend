@@ -7,6 +7,8 @@ import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, Check, Circle } from 'lucide-react';
+import { saveAuthSession } from '@/utils/auth';
+import { supabaseAuthHeaders, supabaseAuthUrl } from '@/utils/supabase';
 
 const signUpSchema = z
   .object({
@@ -81,20 +83,28 @@ export default function SignUpPage() {
     };
 
     try {
-      const response = await fetch('/auth/v1/signup', {
+      const response = await fetch(supabaseAuthUrl('/auth/v1/signup'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: supabaseAuthHeaders(),
         body: JSON.stringify(requestBody),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Something went wrong during signup.');
+        setApiError(
+          data.msg || data.error_description || data.message || 'Something went wrong during signup.'
+        );
+        return;
+      }
+
+      if (data.access_token) {
+        saveAuthSession(data);
       }
 
       router.push('/project');
-    } catch (err: any) {
-      console.warn('API simulated or failed, redirecting for testing:', err.message);
-      router.push('/project');
+    } catch {
+      setApiError('Unable to connect. Please check your internet and try again.');
     } finally {
       setIsLoading(false);
     }

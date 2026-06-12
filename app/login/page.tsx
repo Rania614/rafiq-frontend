@@ -7,7 +7,8 @@ import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
-import Cookies from 'js-cookie';
+import { saveAuthSession, parseSupabaseError } from '@/utils/auth';
+import { supabaseAuthHeaders, supabaseAuthUrl } from '@/utils/supabase';
 
 // 🛑 1. الـ Zod Validation Schema الخاص بالـ Login
 const loginSchema = z.object({
@@ -39,9 +40,9 @@ export default function LoginPage() {
     setApiError(null);
 
     try {
-      const response = await fetch('/auth/v1/token?grant_type=password', {
+      const response = await fetch(supabaseAuthUrl('/auth/v1/token?grant_type=password'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: supabaseAuthHeaders(),
         body: JSON.stringify({
           email: values.email,
           password: values.password,
@@ -49,43 +50,16 @@ export default function LoginPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Invalid email or password');
+        const message = await parseSupabaseError(response, 'Invalid email or password');
+        setApiError(message);
+        return;
       }
 
       const data = await response.json();
-      // البيانات المتوقعة: { access_token: string, refresh_token: string, user: object }
-
-      // تحديد مدة الحفظ (لو معلم على Remember Me هتقعد 30 يوم، لو مش معلم هتقعد لـ قفلة البراوزر Session)
-      const cookieExpiry = values.rememberMe ? 30 : undefined;
-
-      // حفظ الـ Tokens في كوكيز مؤمنة
-      Cookies.set('access_token', data.access_token, {
-        expires: cookieExpiry,
-        secure: true,
-        sameSite: 'strict',
-      });
-      Cookies.set('refresh_token', data.refresh_token, {
-        expires: cookieExpiry,
-        secure: true,
-        sameSite: 'strict',
-      });
-      Cookies.set('user_session', JSON.stringify(data.user), {
-        expires: cookieExpiry,
-        secure: true,
-        sameSite: 'strict',
-      });
-
-      // تحويل المستخدم للصفحة الرئيسية المذكورة في الـ Requirements (/)
-      router.push('/');
-    } catch (err: any) {
-      // محاكاة النجاح (Mock) للتجربة لو الـ API لسه مش شغال أوفلاين
-      console.warn('API Offline, simulation triggered:', err.message);
-
-      const mockExpiry = values.rememberMe ? 30 : undefined;
-      Cookies.set('access_token', 'mock_access_token_xyz', { expires: mockExpiry });
-      Cookies.set('refresh_token', 'mock_refresh_token_abc', { expires: mockExpiry });
-
-      router.push('/');
+      saveAuthSession(data, values.rememberMe);
+      router.push('/project');
+    } catch {
+      setApiError('Unable to connect. Please check your internet and try again.');
     } finally {
       setIsLoading(false);
     }

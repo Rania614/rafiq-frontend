@@ -1,4 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { getAccessToken, clearAuthSession, normalizeUserProfile } from '@/utils/auth';
+import { supabaseAuthHeaders, supabaseAuthUrl } from '@/utils/supabase';
 
 interface UserState {
   data: {
@@ -22,14 +24,10 @@ export const fetchCurrentUser = createAsyncThunk(
   'user/fetchCurrentUser',
   async (_, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch('/auth/v1/user', {
+      const token = getAccessToken();
+      const response = await fetch(supabaseAuthUrl('/auth/v1/user'), {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: 'YOUR_API_KEY',
-          Authorization: `Bearer ${token || ''}`,
-        },
+        headers: supabaseAuthHeaders(token),
       });
 
       if (!response.ok) {
@@ -37,34 +35,30 @@ export const fetchCurrentUser = createAsyncThunk(
       }
 
       const data = await response.json();
-      return data;
+      return normalizeUserProfile(data);
     } catch (error: any) {
       return rejectWithValue(error.message || 'Something went wrong');
     }
   }
 );
 
-export const logoutUser = createAsyncThunk('user/logoutUser', async (_, { rejectWithValue }) => {
-  try {
-    const token = localStorage.getItem('access_token');
+export const logoutUser = createAsyncThunk('user/logoutUser', async () => {
+  const token = getAccessToken();
 
-    const response = await fetch('/auth/v1/logout', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: 'YOUR_API_KEY',
-        Authorization: `Bearer ${token || ''}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Logout failed, please try again.');
+  if (token) {
+    try {
+      await fetch(supabaseAuthUrl('/auth/v1/logout'), {
+        method: 'POST',
+        headers: supabaseAuthHeaders(token),
+        body: JSON.stringify({ scope: 'local' }),
+      });
+    } catch {
+      // Network error — local session will still be cleared below
     }
-
-    return true;
-  } catch (error: any) {
-    return rejectWithValue(error.message || 'Logout failed, please try again.');
   }
+
+  clearAuthSession();
+  return true;
 });
 
 const userSlice = createSlice({

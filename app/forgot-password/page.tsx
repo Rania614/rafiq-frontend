@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Link from 'next/link';
 import { Timer, ArrowLeft } from 'lucide-react';
+import { supabaseAuthHeaders, supabaseAuthUrl } from '@/utils/supabase';
 
 const forgotSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Invalid email format'),
@@ -46,12 +47,9 @@ export default function ForgotPasswordPage() {
     setApiError(null);
 
     try {
-      await fetch('/auth/v1/recover', {
+      await fetch(supabaseAuthUrl('/auth/v1/recover'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: 'YOUR_API_KEY',
-        },
+        headers: supabaseAuthHeaders(),
         body: JSON.stringify({ email: values.email }),
       });
 
