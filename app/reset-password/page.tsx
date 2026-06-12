@@ -72,6 +72,11 @@ function ResetPasswordFormContent() {
   const hasSpecial = /[!@#$%^&*]/.test(passwordValue);
 
   const onSubmit = async (values: ResetPasswordValues) => {
+    if (!token) {
+      setErrorMessage('Invalid or expired reset link.');
+      return;
+    }
+
     setIsLoading(true);
     setErrorMessage(null);
 
@@ -225,7 +230,7 @@ function ResetPasswordFormContent() {
 
         <button
           type="submit"
-          disabled={isLoading}
+          disabled={isLoading || !token}
           className="w-full rounded-lg bg-[#0046AD] py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0056D2] disabled:bg-[#CBD5E1]"
         >
           {isLoading ? 'Updating...' : 'Update Password'}
