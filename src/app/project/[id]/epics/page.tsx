@@ -776,6 +776,7 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
                 <h3 className="text-sm font-bold text-[#0A192F]">Tasks</h3>
                 <button
                   type="button"
+                  onClick={() => router.push(`/project/${projectId}/tasks/new?epic_id=${epic.id}`)}
                   className="flex items-center gap-1 text-xs font-bold text-[#0046AD] hover:underline"
                 >
                   + Add Task
@@ -792,6 +793,7 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
                 </p>
                 <button
                   type="button"
+                  onClick={() => router.push(`/project/${projectId}/tasks/new?epic_id=${epic.id}`)}
                   className="mt-4 rounded-lg bg-[#0046AD] px-4 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:bg-[#0056D2]"
                 >
                   + Add Task
