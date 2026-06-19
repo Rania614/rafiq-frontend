@@ -151,6 +151,11 @@ export default function ProjectsPage() {
     clearCurrentProjectId();
   }, []);
 
+  /**
+   * Main data fetching function for projects.
+   * Handles both initial load and "load more" (append) for mobile infinite scroll.
+   * Also parses pagination metadata from the response headers.
+   */
   const fetchProjects = useCallback(
     async ({ offset, append = false }: { offset: number; append?: boolean }) => {
       const token = getAccessToken();
@@ -208,6 +213,10 @@ export default function ProjectsPage() {
     [router]
   );
 
+  /**
+   * Tracks screen size to toggle between Desktop (Pagination) and Mobile (Infinite Scroll) layouts.
+   * Attaches a listener to update the `isMobile` state dynamically.
+   */
   useEffect(() => {
     const mediaQuery = window.matchMedia(MOBILE_QUERY);
     const updateIsMobile = () => setIsMobile(mediaQuery.matches);
@@ -217,6 +226,10 @@ export default function ProjectsPage() {
     return () => mediaQuery.removeEventListener('change', updateIsMobile);
   }, []);
 
+  /**
+   * Triggers data fetching when the page changes or when switching between mobile/desktop modes.
+   * On mobile, it resets to page 1 and fetches from the beginning.
+   */
   useEffect(() => {
     if (isMobile) {
       setCurrentPage(1);
@@ -231,6 +244,11 @@ export default function ProjectsPage() {
     });
   }, [currentPage, isMobile, fetchProjects]);
 
+  /**
+   * IntersectionObserver setup for mobile infinite scrolling.
+   * Watches the invisible 'sentinel' div at the bottom of the list.
+   * When it comes into view, it fetches the next batch of projects.
+   */
   useEffect(() => {
     if (!isMobile || pageState !== 'success' || !hasMoreMobile) return;
 

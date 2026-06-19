@@ -80,7 +80,7 @@ export default function Sidebar({
       icon: CheckSquare,
       requiresProject: true,
       isActive: (path, projectId) =>
-        Boolean(projectId && new RegExp(`^/project/${projectId}/tasks$`).test(path)),
+        Boolean(projectId && new RegExp(`^/project/${projectId}/tasks(?:/new)?$`).test(path)),
     },
     {
       name: 'Project Members',

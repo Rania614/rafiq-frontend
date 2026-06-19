@@ -2,6 +2,9 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { getAccessToken, clearAuthSession, normalizeUserProfile } from '@/utils/auth';
 import { supabaseAuthHeaders, supabaseAuthUrl } from '@/utils/supabase';
 
+/**
+ * Structure of the user state maintained in the Redux store.
+ */
 interface UserState {
   data: {
     email: string;
@@ -20,6 +23,10 @@ const initialState: UserState = {
   error: null,
 };
 
+/**
+ * Async thunk that fetches the current authenticated user's profile from Supabase.
+ * Uses the locally stored access token to authenticate the request.
+ */
 export const fetchCurrentUser = createAsyncThunk(
   'user/fetchCurrentUser',
   async (_, { rejectWithValue }) => {
@@ -42,6 +49,10 @@ export const fetchCurrentUser = createAsyncThunk(
   }
 );
 
+/**
+ * Async thunk that handles the user logout process.
+ * Attempts to invalidate the session on the server before clearing local session data.
+ */
 export const logoutUser = createAsyncThunk('user/logoutUser', async () => {
   const token = getAccessToken();
 
@@ -65,10 +76,15 @@ const userSlice = createSlice({
   name: 'user',
   initialState,
   reducers: {
+    /** Resets the user state to its initial null/empty values */
     clearUser: (state) => {
       state.data = null;
       state.error = null;
     },
+    /**
+     * Updates specific fields within the user's raw metadata.
+     * Useful when the user edits their profile information locally without needing a full re-fetch.
+     */
     updateUserMetadata: (state, action: PayloadAction<{ name: string; job_title?: string }>) => {
       if (state.data) {
         state.data.raw_user_meta_data = {
