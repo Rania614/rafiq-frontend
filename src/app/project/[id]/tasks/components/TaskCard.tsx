@@ -6,16 +6,19 @@ import type { Task } from '../types';
 
 interface TaskCardProps {
   task: Task;
+  onOpenTaskDetails: (taskId: string) => void;
 }
 
-export default function TaskCard({ task }: TaskCardProps) {
+export default function TaskCard({ task, onOpenTaskDetails }: TaskCardProps) {
   const { isDueToday, isDelayed } = getDueDateStatus(task.deadline);
   const dueLabel = getBoardDueLabel(task);
   const assigneeName = task.assignee?.name ?? '';
 
   return (
-    <div
-      className={`flex flex-col gap-4 rounded-lg border p-4 ${BOARD_SHADOW} ${
+    <button
+      type="button"
+      onClick={() => onOpenTaskDetails(task.id)}
+      className={`flex w-full cursor-pointer flex-col gap-4 rounded-lg border p-4 text-left transition-colors hover:border-[#003D9B]/30 ${BOARD_SHADOW} ${
         isDelayed && task.deadline
           ? 'border-[#BA1A1A]/10 bg-[#FFDBD6]/20'
           : 'border-[#C3C6D6]/10 bg-white'
@@ -52,6 +55,6 @@ export default function TaskCard({ task }: TaskCardProps) {
           </div>
         ) : null}
       </div>
-    </div>
+    </button>
   );
 }

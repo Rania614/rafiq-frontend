@@ -1,9 +1,34 @@
 import { getTaskStatusLabel, TASK_STATUSES, type TaskStatus } from '@/utils/tasks';
+import { getMemberDisplayName } from '@/utils/members';
+import { formatProjectDate } from '@/utils/date';
 import { createEmptyTasksByStatus } from './constants';
-import type { Task } from './types';
+import type { Task, TaskUser } from './types';
 
 export function formatStatusLabel(status: string): string {
   return getTaskStatusLabel(status);
+}
+
+export function formatTaskDetailsDate(dateStr?: string | null): string {
+  if (!dateStr) return '—';
+  const formatted = formatProjectDate(dateStr);
+  return formatted || '—';
+}
+
+export function getTaskDueDate(task: Task): string | null | undefined {
+  return task.deadline ?? task.due_date;
+}
+
+export function getTaskPersonName(person?: TaskUser | Record<string, unknown> | null): string {
+  if (!person || typeof person !== 'object') {
+    return '';
+  }
+
+  const name = typeof person.name === 'string' ? person.name.trim() : '';
+  if (name) {
+    return name;
+  }
+
+  return getMemberDisplayName(person as Record<string, unknown>);
 }
 
 export function formatListDueDate(dateStr?: string | null): string {

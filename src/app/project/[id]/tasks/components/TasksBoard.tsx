@@ -6,9 +6,14 @@ import TaskColumn from './TaskColumn';
 interface TasksBoardProps {
   projectId: string;
   tasksByStatus: Record<TaskStatus, Task[]>;
+  onOpenTaskDetails: (taskId: string) => void;
 }
 
-export default function TasksBoard({ projectId, tasksByStatus }: TasksBoardProps) {
+export default function TasksBoard({
+  projectId,
+  tasksByStatus,
+  onOpenTaskDetails,
+}: TasksBoardProps) {
   return (
     <div className={BOARD_COLUMNS_CLASS}>
       {TASK_STATUSES.map((status) => (
@@ -17,6 +22,7 @@ export default function TasksBoard({ projectId, tasksByStatus }: TasksBoardProps
           projectId={projectId}
           status={status}
           tasks={tasksByStatus[status]}
+          onOpenTaskDetails={onOpenTaskDetails}
         />
       ))}
     </div>

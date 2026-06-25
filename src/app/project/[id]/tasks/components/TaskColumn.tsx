@@ -11,9 +11,15 @@ interface TaskColumnProps {
   projectId: string;
   status: TaskStatus;
   tasks: Task[];
+  onOpenTaskDetails: (taskId: string) => void;
 }
 
-export default function TaskColumn({ projectId, status, tasks }: TaskColumnProps) {
+export default function TaskColumn({
+  projectId,
+  status,
+  tasks,
+  onOpenTaskDetails,
+}: TaskColumnProps) {
   const countBadgeClass = STATUS_COUNT_BADGE[status] ?? 'bg-[#E8EDFF] text-[#434654]';
 
   return (
@@ -49,7 +55,7 @@ export default function TaskColumn({ projectId, status, tasks }: TaskColumnProps
 
       <div className="flex flex-col gap-4">
         {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} />
+          <TaskCard key={task.id} task={task} onOpenTaskDetails={onOpenTaskDetails} />
         ))}
       </div>
     </div>
