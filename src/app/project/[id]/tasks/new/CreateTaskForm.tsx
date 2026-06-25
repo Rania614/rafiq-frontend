@@ -9,7 +9,12 @@ import { AlertCircle, Loader2 } from 'lucide-react';
 import ProjectBreadcrumb from '@/app/components/ProjectBreadcrumb';
 import { getAccessToken } from '@/utils/auth';
 import { getProjectTasksHref, setCurrentProjectId } from '@/utils/project';
-import { TASK_STATUSES, type TaskStatus } from '@/utils/tasks';
+import {
+  DEFAULT_TASK_STATUS,
+  normalizeTaskStatus,
+  TASK_STATUSES,
+  TASK_STATUS_LABELS,
+} from '@/utils/tasks';
 import { parseSupabaseRestError, supabaseAuthHeaders, supabaseRestUrl } from '@/utils/supabase';
 
 interface ProjectMember {
@@ -64,12 +69,8 @@ export default function CreateTaskForm({ params }: { params: Promise<{ id: strin
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Parse status query parameter (handle both space and underscore format)
-  const rawStatus = searchParams.get('status') ?? 'TO DO';
-  const statusParam = rawStatus.replace(/_/g, ' ');
-  const initialStatus = TASK_STATUSES.includes(statusParam as TaskStatus)
-    ? (statusParam as TaskStatus)
-    : 'TO DO';
+  const rawStatus = searchParams.get('status') ?? DEFAULT_TASK_STATUS;
+  const initialStatus = normalizeTaskStatus(rawStatus) ?? DEFAULT_TASK_STATUS;
 
   const epicIdParam = searchParams.get('epic_id') ?? '';
 
@@ -181,11 +182,10 @@ export default function CreateTaskForm({ params }: { params: Promise<{ id: strin
       return;
     }
 
-    // Build the request body mapping space status to underscore status
     const body: Record<string, string> = {
       project_id: projectId,
       title: values.title.trim(),
-      status: values.status.replace(/ /g, '_'),
+      status: values.status,
     };
 
     if (values.description?.trim()) {
@@ -298,7 +298,7 @@ export default function CreateTaskForm({ params }: { params: Promise<{ id: strin
               >
                 {TASK_STATUSES.map((status) => (
                   <option key={status} value={status}>
-                    {status}
+                    {TASK_STATUS_LABELS[status]}
                   </option>
                 ))}
               </select>
