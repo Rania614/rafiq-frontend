@@ -8,13 +8,7 @@ import { getAvatarLetters } from '@/utils/avatar';
 import { getAccessToken } from '@/utils/auth';
 import { setCurrentProjectId } from '@/utils/project';
 import { supabaseAuthHeaders, supabaseRestUrl } from '@/utils/supabase';
-
-interface ProjectMember {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-}
+import { normalizeProjectMember, type ProjectMember } from '@/utils/members';
 
 type PageState = 'loading' | 'success' | 'error';
 
@@ -64,23 +58,6 @@ function getAvatarColor(seed: string): string {
 
 function getRoleBadgeClass(role: string): string {
   return ROLE_BADGE_STYLES[role.toLowerCase()] ?? DEFAULT_ROLE_BADGE_STYLE;
-}
-
-function normalizeMember(raw: Record<string, unknown>): ProjectMember {
-  const metadata = (raw.user_metadata ?? raw.raw_user_meta_data) as
-    | Record<string, string>
-    | undefined;
-
-  const name = String(raw.name ?? raw.full_name ?? metadata?.name ?? raw.user_name ?? 'Unknown');
-  const email = String(raw.email ?? '');
-  const role = String(raw.role ?? 'member').toLowerCase();
-
-  return {
-    id: String(raw.user_id ?? raw.id ?? email ?? name),
-    name,
-    email,
-    role,
-  };
 }
 
 function RoleBadge({ role }: { role: string }) {
@@ -436,7 +413,7 @@ export default function ProjectMembersPage({ params }: { params: Promise<{ id: s
       }
 
       const membersData: Record<string, unknown>[] = await membersResponse.json();
-      setMembers(membersData.map(normalizeMember));
+      setMembers(membersData.map(normalizeProjectMember));
 
       if (projectResponse.ok) {
         const projectData: { name: string }[] = await projectResponse.json();

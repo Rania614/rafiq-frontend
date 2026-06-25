@@ -27,6 +27,7 @@ import { getAvatarLetters } from '@/utils/avatar';
 import { getAccessToken } from '@/utils/auth';
 import { getProjectEpicsNewHref } from '@/utils/project';
 import { supabaseAuthHeaders, supabaseRestUrl } from '@/utils/supabase';
+import { normalizeProjectMember, type ProjectMember } from '@/utils/members';
 import {
   EPICS_PAGE_SIZE,
   getPageNumbers,
@@ -48,22 +49,6 @@ interface Epic {
   created_by?: EpicUser | null;
   assignee?: EpicUser | null;
   assignee_id?: string | null;
-}
-
-interface ProjectMember {
-  id: string;
-  name: string;
-}
-
-function normalizeMember(raw: Record<string, unknown>): ProjectMember {
-  const metadata = (raw.user_metadata ?? raw.raw_user_meta_data) as
-    | Record<string, string>
-    | undefined;
-
-  return {
-    id: String(raw.user_id ?? raw.id ?? ''),
-    name: String(raw.name ?? raw.full_name ?? metadata?.name ?? raw.user_name ?? 'Unknown'),
-  };
 }
 
 function getDatePickerValue(dateStr?: string | null): string {
@@ -494,7 +479,7 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
 
         if (membersRes.ok) {
           const membersData: Record<string, unknown>[] = await membersRes.json();
-          setMembers(membersData.map(normalizeMember).filter((member) => member.id));
+          setMembers(membersData.map(normalizeProjectMember).filter((member) => member.id));
         }
       } catch {
         setError('Failed to load epic details');
