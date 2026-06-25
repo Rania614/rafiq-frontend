@@ -1,31 +1,45 @@
 'use client';
 
 import { use, useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import ProjectBreadcrumb from '@/app/components/ProjectBreadcrumb';
 import { getAccessToken } from '@/utils/auth';
 import { setCurrentProjectId } from '@/utils/project';
 import { supabaseAuthHeaders, supabaseRestUrl } from '@/utils/supabase';
-import { TASK_STATUSES, type TaskStatus } from '@/utils/tasks';
-import TaskEmptyState, { TaskSearchEmptyState } from './components/TaskEmptyState';
+import { TASK_STATUSES } from '@/utils/tasks';
+import TaskEmptyState from './components/TaskEmptyState';
 import TaskErrorState from './components/TaskErrorState';
 import TaskLoadingState from './components/TaskLoadingState';
 import TasksBoard from './components/TasksBoard';
 import TasksHeader, { TasksHeaderSkeleton } from './components/TasksHeader';
 import TasksList from './components/TasksList';
-import { EMPTY_TASKS_BY_STATUS } from './constants';
+import { countTasks, groupTasksByStatus } from './helpers';
+import { BOARD_SCROLL_CONTAINER_CLASS } from './constants';
 import type { PageState, Task, ViewMode } from './types';
+
+function parseViewMode(value: string | null): ViewMode {
+  return value === 'list' ? 'list' : 'board';
+}
 
 export default function ProjectTasksPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const viewMode = parseViewMode(searchParams.get('view'));
 
   const [pageState, setPageState] = useState<PageState>('loading');
   const [projectName, setProjectName] = useState('');
-  const [tasksByStatus, setTasksByStatus] =
-    useState<Record<TaskStatus, Task[]>>(EMPTY_TASKS_BY_STATUS);
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [tasksByStatus, setTasksByStatus] = useState(() => groupTasksByStatus([]));
+
+  const handleViewModeChange = useCallback(
+    (mode: ViewMode) => {
+      const nextSearchParams = new URLSearchParams(searchParams.toString());
+      nextSearchParams.set('view', mode);
+      router.push(`${pathname}?${nextSearchParams.toString()}`);
+    },
+    [pathname, router, searchParams]
+  );
 
   const fetchTasks = useCallback(async () => {
     const token = getAccessToken();
@@ -37,47 +51,28 @@ export default function ProjectTasksPage({ params }: { params: Promise<{ id: str
     setPageState('loading');
 
     try {
-      const results = await Promise.all(
-        TASK_STATUSES.map(async (status) => {
-          const url = supabaseRestUrl(`/project_tasks?project_id=eq.${id}&status=eq.${status}`);
+      const url = supabaseRestUrl(`/project_tasks?project_id=eq.${id}`);
 
-          const response = await fetch(url, {
-            method: 'GET',
-            headers: supabaseAuthHeaders(token),
-          });
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: supabaseAuthHeaders(token),
+      });
 
-          if (response.status === 401) {
-            return { status, tasks: [] as Task[], unauthorized: true, ok: false };
-          }
-
-          if (!response.ok) {
-            return { status, tasks: [] as Task[], unauthorized: false, ok: false };
-          }
-
-          const data: Task[] = await response.json();
-          return { status, tasks: data, unauthorized: false, ok: true };
-        })
-      );
-
-      if (results.some((result) => result.unauthorized)) {
+      if (response.status === 401) {
         router.replace('/login');
         return;
       }
 
-      if (!results.some((result) => result.ok)) {
+      if (!response.ok) {
         setPageState('error');
         return;
       }
 
-      const nextTasksByStatus = { ...EMPTY_TASKS_BY_STATUS };
-      results.forEach((result) => {
-        nextTasksByStatus[result.status] = result.tasks;
-      });
+      const data: Task[] = await response.json();
+      const groupedTasks = groupTasksByStatus(data);
 
-      setTasksByStatus(nextTasksByStatus);
-
-      const totalTasks = results.reduce((count, result) => count + result.tasks.length, 0);
-      setPageState(totalTasks === 0 ? 'empty' : 'success');
+      setTasksByStatus(groupedTasks);
+      setPageState(countTasks(groupedTasks) === 0 ? 'empty' : 'success');
     } catch {
       setPageState('error');
     }
@@ -121,38 +116,11 @@ export default function ProjectTasksPage({ params }: { params: Promise<{ id: str
     [tasksByStatus]
   );
 
-  const normalizedSearch = searchTerm.trim().toLowerCase();
-
-  const filteredTasks = useMemo(() => {
-    if (!normalizedSearch) return allTasks;
-
-    return allTasks.filter((task) => {
-      const taskId = (task.task_id ?? task.id).toLowerCase();
-      return (
-        task.title.toLowerCase().includes(normalizedSearch) || taskId.includes(normalizedSearch)
-      );
-    });
-  }, [allTasks, normalizedSearch]);
-
-  const filteredTasksByStatus = useMemo(() => {
-    const next = { ...EMPTY_TASKS_BY_STATUS };
-
-    TASK_STATUSES.forEach((status) => {
-      next[status] = tasksByStatus[status].filter((task) =>
-        filteredTasks.some((filteredTask) => filteredTask.id === task.id)
-      );
-    });
-
-    return next;
-  }, [filteredTasks, tasksByStatus]);
-
-  const showSearchEmpty =
-    pageState === 'success' && normalizedSearch.length > 0 && filteredTasks.length === 0;
-  const showListContent = pageState === 'success' && !showSearchEmpty;
-  const showBoardContent = pageState === 'success' && !showSearchEmpty && viewMode === 'board';
+  const showListContent = pageState === 'success' && viewMode === 'list';
+  const showBoardContent = pageState === 'success' && viewMode === 'board';
 
   return (
-    <section className="flex min-h-screen flex-col gap-6">
+    <section className="flex min-w-0 w-full max-w-full flex-col gap-6">
       <ProjectBreadcrumb
         items={[
           { label: 'Projects', href: '/project' },
@@ -171,37 +139,22 @@ export default function ProjectTasksPage({ params }: { params: Promise<{ id: str
           <TasksHeader
             projectName={projectName}
             projectId={id}
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
             viewMode={viewMode}
-            onViewModeChange={setViewMode}
+            onViewModeChange={handleViewModeChange}
           />
 
           {pageState === 'error' && <TaskErrorState onRetry={fetchTasks} />}
 
           {pageState === 'empty' && <TaskEmptyState projectId={id} />}
 
-          {showSearchEmpty && <TaskSearchEmptyState />}
-
-          {showListContent && viewMode === 'list' && (
-            <TasksList tasks={filteredTasks} totalCount={allTasks.length} />
+          {showListContent && (
+            <TasksList projectId={id} tasks={allTasks} totalCount={allTasks.length} />
           )}
 
           {showBoardContent && (
-            <TasksBoard
-              projectId={id}
-              tasksByStatus={filteredTasksByStatus}
-              className="hidden gap-6 overflow-x-auto pb-4 lg:flex"
-            />
-          )}
-
-          {showBoardContent && (
-            <TasksBoard
-              projectId={id}
-              tasksByStatus={filteredTasksByStatus}
-              className="flex gap-4 overflow-x-auto pb-4 lg:hidden"
-              columnKeyPrefix="mobile-"
-            />
+            <div className={BOARD_SCROLL_CONTAINER_CLASS}>
+              <TasksBoard projectId={id} tasksByStatus={tasksByStatus} />
+            </div>
           )}
         </>
       )}

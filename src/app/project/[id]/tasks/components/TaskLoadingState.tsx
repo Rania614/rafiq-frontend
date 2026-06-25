@@ -1,11 +1,11 @@
 import { TASK_STATUSES } from '@/utils/tasks';
-import { BOARD_SHADOW } from '../constants';
+import { BOARD_COLUMNS_CLASS, BOARD_SCROLL_CONTAINER_CLASS, BOARD_SHADOW } from '../constants';
 import type { ViewMode } from '../types';
 import { TasksListSkeleton } from './TasksList';
 
 function BoardColumnSkeleton() {
   return (
-    <div className="flex min-w-64 animate-pulse flex-col gap-4">
+    <div className="flex w-64 shrink-0 animate-pulse flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <div className="size-2 rounded-full bg-[#E8EDFF]" />
@@ -36,10 +36,12 @@ function BoardColumnSkeleton() {
 
 export function TasksBoardSkeleton() {
   return (
-    <div className="flex gap-6 overflow-x-auto pb-4">
-      {TASK_STATUSES.map((status) => (
-        <BoardColumnSkeleton key={status} />
-      ))}
+    <div className={BOARD_SCROLL_CONTAINER_CLASS}>
+      <div className={BOARD_COLUMNS_CLASS}>
+        {TASK_STATUSES.map((status) => (
+          <BoardColumnSkeleton key={status} />
+        ))}
+      </div>
     </div>
   );
 }

@@ -17,7 +17,7 @@ export default function TaskColumn({ projectId, status, tasks }: TaskColumnProps
   const countBadgeClass = STATUS_COUNT_BADGE[status] ?? 'bg-[#E8EDFF] text-[#434654]';
 
   return (
-    <div className="flex min-w-64 flex-col gap-4">
+    <div className="flex w-64 shrink-0 flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className={`size-2 rounded-full ${STATUS_DOT_COLORS[status]}`} />

@@ -1,4 +1,5 @@
-import { getTaskStatusLabel } from '@/utils/tasks';
+import { getTaskStatusLabel, TASK_STATUSES, type TaskStatus } from '@/utils/tasks';
+import { createEmptyTasksByStatus } from './constants';
 import type { Task } from './types';
 
 export function formatStatusLabel(status: string): string {
@@ -66,4 +67,28 @@ export function getAvatarColor(seed: string): string {
   ];
 
   return colors[Math.abs(hash) % colors.length];
+}
+
+export function groupTasksByStatus(tasks: Task[]): Record<TaskStatus, Task[]> {
+  const tasksByStatus = createEmptyTasksByStatus();
+  const seenIds = new Set<string>();
+
+  tasks.forEach((task) => {
+    if (!TASK_STATUSES.includes(task.status as TaskStatus)) {
+      return;
+    }
+
+    if (seenIds.has(task.id)) {
+      return;
+    }
+
+    seenIds.add(task.id);
+    tasksByStatus[task.status as TaskStatus].push(task);
+  });
+
+  return tasksByStatus;
+}
+
+export function countTasks(tasksByStatus: Record<TaskStatus, Task[]>): number {
+  return TASK_STATUSES.reduce((total, status) => total + tasksByStatus[status].length, 0);
 }

@@ -12,7 +12,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-[#F4F7FF]">
       <Navbar onMenuClick={() => setIsOpenMobile(true)} />
 
-      <div className="flex pt-16">
+      <div className="flex min-w-0 pt-16">
         <Sidebar
           isCollapsed={isCollapsed}
           setIsCollapsed={setIsCollapsed}
@@ -20,7 +20,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           setIsOpenMobile={setIsOpenMobile}
         />
 
-        <main className="flex-1 p-6 transition-all duration-300">{children}</main>
+        <main className="min-w-0 flex-1 p-6 transition-all duration-300">{children}</main>
       </div>
     </div>
   );

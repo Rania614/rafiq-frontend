@@ -1,12 +1,15 @@
-import { MoreVertical } from 'lucide-react';
+import Link from 'next/link';
+import { MoreVertical, Plus } from 'lucide-react';
 import { getAvatarLetters } from '@/utils/avatar';
-import { SHADOW_SM, TABLE_CELL_CLASS, TABLE_HEAD_CLASS } from '../constants';
+import { NEW_TASK_BUTTON_CLASS, SHADOW_SM, TABLE_CELL_CLASS, TABLE_HEAD_CLASS } from '../constants';
 import { formatListDueDate, getAvatarColor } from '../helpers';
 import type { Task } from '../types';
 import TaskRow from './TaskRow';
 import TaskStatusBadge from './TaskStatusBadge';
+import TasksListPagination from './TasksListPagination';
 
 interface TasksListProps {
+  projectId: string;
   tasks: Task[];
   totalCount: number;
 }
@@ -53,18 +56,23 @@ function TaskMobileCard({ task }: { task: Task }) {
   );
 }
 
-export default function TasksList({ tasks, totalCount }: TasksListProps) {
+export default function TasksList({ projectId, tasks, totalCount }: TasksListProps) {
+  const addTaskHref = `/project/${projectId}/tasks/new`;
+
   return (
-    <>
-      <div className="hidden w-full overflow-x-auto lg:block">
+    <div className="flex min-w-0 w-full max-w-full flex-col gap-4 lg:gap-0">
+      <div className="hidden min-w-0 w-full overflow-x-auto lg:block">
         <table className={`min-w-[960px] w-full border-collapse ${SHADOW_SM}`}>
           <thead>
             <tr className="border-b border-[#C3C6D6]/10 bg-[#F1F3FF]/30">
-              <th className={`${TABLE_HEAD_CLASS} w-2/12`}>Task ID</th>
+              <th className={`${TABLE_HEAD_CLASS} w-2/12`}>Task</th>
               <th className={`${TABLE_HEAD_CLASS} w-3/12`}>Title</th>
-              <th className={`${TABLE_HEAD_CLASS} w-1/5`}>Status</th>
               <th className={`${TABLE_HEAD_CLASS} w-2/12`}>Due Date</th>
-              <th className={`${TABLE_HEAD_CLASS} w-3/12`}>Assignees</th>
+              <th className={`${TABLE_HEAD_CLASS} w-1/5`}>Status</th>
+              <th className={`${TABLE_HEAD_CLASS} w-3/12`}>Assignee</th>
+              <th className={`${TABLE_HEAD_CLASS} w-12`}>
+                <span className="sr-only">Settings</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -81,12 +89,20 @@ export default function TasksList({ tasks, totalCount }: TasksListProps) {
         ))}
       </div>
 
-      <footer className="hidden bg-[#F1F3FF]/20 px-6 py-3 lg:block">
+      <footer className="flex flex-col gap-4 bg-[#F1F3FF]/20 px-6 py-3 lg:flex-row lg:items-center lg:justify-between">
         <p className="text-sm font-medium text-[#434654]">
           Showing {tasks.length} of {totalCount} tasks
         </p>
+        <TasksListPagination />
       </footer>
-    </>
+
+      <div className="flex justify-center lg:justify-end">
+        <Link href={addTaskHref} className={`${NEW_TASK_BUTTON_CLASS} w-full lg:w-auto`}>
+          <Plus size={16} />
+          Add New Task
+        </Link>
+      </div>
+    </div>
   );
 }
 
@@ -97,8 +113,8 @@ export function TasksListSkeleton() {
         <table className={`min-w-[960px] w-full border-collapse ${SHADOW_SM}`}>
           <thead>
             <tr className="border-b border-[#C3C6D6]/10 bg-[#F1F3FF]/30">
-              {['Task ID', 'Title', 'Status', 'Due Date', 'Assignees'].map((label) => (
-                <th key={label} className={TABLE_HEAD_CLASS}>
+              {['Task', 'Title', 'Due Date', 'Status', 'Assignee', ''].map((label) => (
+                <th key={label || 'settings'} className={TABLE_HEAD_CLASS}>
                   {label}
                 </th>
               ))}
@@ -114,16 +130,19 @@ export function TasksListSkeleton() {
                   <div className="h-4 w-3/4 rounded-sm bg-[#E8EDFF]" />
                 </td>
                 <td className={TABLE_CELL_CLASS}>
-                  <div className="h-6 w-20 rounded-sm bg-[#E8EDFF]" />
+                  <div className="h-4 w-24 rounded-sm bg-[#E8EDFF]" />
                 </td>
                 <td className={TABLE_CELL_CLASS}>
-                  <div className="h-4 w-24 rounded-sm bg-[#E8EDFF]" />
+                  <div className="h-6 w-20 rounded-sm bg-[#E8EDFF]" />
                 </td>
                 <td className={TABLE_CELL_CLASS}>
                   <div className="flex items-center gap-3">
                     <div className="size-6.5 rounded-full bg-[#E8EDFF]" />
                     <div className="h-4 w-20 rounded-sm bg-[#E8EDFF]" />
                   </div>
+                </td>
+                <td className={TABLE_CELL_CLASS}>
+                  <div className="ms-auto h-4 w-4 rounded-sm bg-[#F1F3FF]" />
                 </td>
               </tr>
             ))}

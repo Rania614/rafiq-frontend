@@ -20,8 +20,8 @@ export default function TaskViewSelect({ value, onChange }: TaskViewSelectProps)
         onChange={(event) => onChange(event.target.value as ViewMode)}
         className={`${VIEW_SELECT_CLASS} w-full ${SHADOW_SM}`}
       >
-        <option value="list">List View</option>
         <option value="board">Board View</option>
+        <option value="list">List View</option>
       </select>
     </div>
   );
