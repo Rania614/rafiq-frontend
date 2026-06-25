@@ -1,22 +1,22 @@
-import { Compass, Layers, Square } from 'lucide-react';
+import { FolderKanban, Layers, LayoutGrid } from 'lucide-react';
 
 export default function EmptyProjectsIllustration() {
   return (
-    <div className="relative mx-auto mb-8 flex h-44 w-full max-w-xs items-center justify-center">
-      <div className="absolute left-4 top-6 rotate-[-12deg] rounded-xl border border-[#CBD5E1]/60 bg-[#E2ECFF]/50 p-3 text-[#0046AD]/40">
-        <Square size={28} strokeWidth={1.5} />
+    <div className="relative mx-auto flex h-[250px] w-[250px] items-center justify-center">
+      <div className="absolute left-2 top-8 rotate-[-12deg] rounded-lg bg-[#E8EDFF] p-4 text-[#003D9B]/30">
+        <LayoutGrid size={32} strokeWidth={1.5} />
       </div>
 
-      <div className="relative z-10 flex h-24 w-24 items-center justify-center rounded-2xl border border-[#CBD5E1] bg-[#E2ECFF]/60 shadow-sm">
-        <Compass size={40} className="text-[#0046AD]/70" strokeWidth={1.5} />
+      <div className="relative z-10 flex h-28 w-28 items-center justify-center rounded-2xl bg-[#F1F3FF] text-[#0052CC]/70 shadow-[0_1px_2px_0px_#0000000d]">
+        <FolderKanban size={48} strokeWidth={1.5} />
       </div>
 
-      <div className="absolute bottom-4 left-8 rotate-[8deg] rounded-lg border border-[#CBD5E1]/60 bg-white p-2.5 text-[#0046AD]/50 shadow-sm">
-        <Layers size={22} strokeWidth={1.5} />
+      <div className="absolute bottom-6 left-6 rotate-[8deg] rounded-lg bg-white p-3 text-[#003D9B]/40 shadow-[0_1px_2px_0px_#0000000d]">
+        <Layers size={24} strokeWidth={1.5} />
       </div>
 
-      <div className="absolute right-2 top-10 h-16 w-3 rotate-[20deg] rounded-full bg-[#E2ECFF] border border-[#CBD5E1]/40" />
-      <div className="absolute bottom-10 right-6 h-12 w-12 rounded-lg border-2 border-dashed border-[#CBD5E1]/80 bg-[#F4F7FF]" />
+      <div className="absolute right-4 top-12 h-14 w-2.5 rotate-[20deg] rounded-full bg-[#E0E8FF]" />
+      <div className="absolute bottom-8 right-4 size-12 rounded-lg border-2 border-dashed border-[#C3C6D6]/80 bg-[#F9F9FF]" />
     </div>
   );
 }
