@@ -1,21 +1,12 @@
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { FlatCompat } from '@eslint/eslintrc';
+import { defineConfig, globalIgnores } from 'eslint/config';
+import nextVitals from 'eslint-config-next/core-web-vitals';
+import nextTs from 'eslint-config-next/typescript';
+import eslintConfigPrettier from 'eslint-config-prettier';
 import prettierPlugin from 'eslint-plugin-prettier';
-import prettierConfig from 'eslint-config-prettier';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
-const eslintConfig = [
-  // 1. بيجيب إعدادات Next.js الافتراضية
-  ...compat.extends('next/core-web-vitals'),
-
-  // 2. دمج إعدادات Prettier عشان تمنع أي تعارض وتظهر الأخطاء كلينتر
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
   {
     plugins: {
       prettier: prettierPlugin,
@@ -25,9 +16,8 @@ const eslintConfig = [
       'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },
-
-  // 3. بيقفل قواعد الـ ESLint اللي بتتعارض مع الـ Prettier
-  prettierConfig,
-];
+  eslintConfigPrettier,
+  globalIgnores(['.next/**', 'out/**', 'build/**', 'next-env.d.ts']),
+]);
 
 export default eslintConfig;

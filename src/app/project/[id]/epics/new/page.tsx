@@ -9,11 +9,7 @@ import { AlertCircle } from 'lucide-react';
 import ProjectBreadcrumb from '@/app/components/ProjectBreadcrumb';
 import { getAccessToken } from '@/utils/auth';
 import { getProjectEpicsHref, setCurrentProjectId } from '@/utils/project';
-import {
-  parseSupabaseRestError,
-  supabaseAuthHeaders,
-  supabaseRestUrl,
-} from '@/utils/supabase';
+import { parseSupabaseRestError, supabaseAuthHeaders, supabaseRestUrl } from '@/utils/supabase';
 
 interface ProjectMember {
   id: string;
@@ -315,7 +311,9 @@ export default function CreateEpicPage({ params }: { params: Promise<{ id: strin
                 }`}
               />
               {errors.deadline && (
-                <p className="mt-1.5 text-xs font-medium text-[#D31818]">{errors.deadline.message}</p>
+                <p className="mt-1.5 text-xs font-medium text-[#D31818]">
+                  {errors.deadline.message}
+                </p>
               )}
             </div>
           </div>

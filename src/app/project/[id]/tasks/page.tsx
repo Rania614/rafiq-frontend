@@ -1,179 +1,87 @@
 'use client';
 
-import { use, useEffect, useState } from 'react';
-import Link from 'next/link';
+import { use, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  AlertTriangle,
-  LayoutGrid,
-  Loader2,
-  Plus,
-  Search,
-  SlidersHorizontal,
-} from 'lucide-react';
 import ProjectBreadcrumb from '@/app/components/ProjectBreadcrumb';
-import { getAvatarLetters } from '@/utils/avatar';
 import { getAccessToken } from '@/utils/auth';
-import {
-  getProjectTasksNewHref,
-  setCurrentProjectId,
-} from '@/utils/project';
+import { setCurrentProjectId } from '@/utils/project';
 import { supabaseAuthHeaders, supabaseRestUrl } from '@/utils/supabase';
-import {
-  formatTaskCardDate,
-  STATUS_DOT_COLORS,
-  supabaseEqValue,
-  TASK_STATUSES,
-  type TaskStatus,
-} from '@/utils/tasks';
+import { TASK_STATUSES, type TaskStatus } from '@/utils/tasks';
+import TaskEmptyState, { TaskSearchEmptyState } from './components/TaskEmptyState';
+import TaskErrorState from './components/TaskErrorState';
+import TaskLoadingState from './components/TaskLoadingState';
+import TasksBoard from './components/TasksBoard';
+import TasksHeader, { TasksHeaderSkeleton } from './components/TasksHeader';
+import TasksList from './components/TasksList';
+import { EMPTY_TASKS_BY_STATUS } from './constants';
+import type { PageState, Task, ViewMode } from './types';
 
-interface TaskUser {
-  name?: string;
-}
-
-interface Task {
-  id: string;
-  title: string;
-  status: string;
-  deadline?: string | null;
-  assignee?: TaskUser | null;
-}
-
-function TaskCard({ task, status }: { task: Task; status: TaskStatus }) {
-  const isBlocked = status === 'BLOCKED';
-  const isInProgress = status === 'IN PROGRESS';
-  const dateLabel = formatTaskCardDate(task.deadline);
-  const assigneeName = task.assignee?.name ?? '';
-
-  return (
-    <div
-      className={`rounded-xl border bg-white p-4 shadow-sm transition-shadow hover:shadow-md ${
-        isBlocked
-          ? 'border-red-200 bg-red-50/60'
-          : isInProgress
-            ? 'border-[#CBD5E1] border-l-4 border-l-[#0046AD]'
-            : 'border-[#CBD5E1]'
-      }`}
-    >
-      <p className="text-sm font-semibold leading-snug text-[#0A192F]">{task.title}</p>
-
-      {isBlocked && (
-        <div className="mt-2 flex items-center gap-1 text-[10px] font-bold tracking-wider text-[#D31818] uppercase">
-          <AlertTriangle size={12} className="shrink-0" />
-          Delayed
-        </div>
-      )}
-
-      <div className="mt-4 flex items-center justify-between">
-        {dateLabel ? (
-          <span
-            className={`text-[10px] font-bold tracking-wider uppercase ${
-              dateLabel === 'TODAY' ? 'text-[#0046AD]' : 'text-[#4A5568]'
-            }`}
-          >
-            {dateLabel}
-          </span>
-        ) : (
-          <span />
-        )}
-
-        {assigneeName ? (
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#E2ECFF] text-[9px] font-bold text-[#0046AD]">
-            {getAvatarLetters(assigneeName)}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function TaskColumn({ projectId, status }: { projectId: string; status: TaskStatus }) {
+export default function ProjectTasksPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const [pageState, setPageState] = useState<PageState>('loading');
+  const [projectName, setProjectName] = useState('');
+  const [tasksByStatus, setTasksByStatus] =
+    useState<Record<TaskStatus, Task[]>>(EMPTY_TASKS_BY_STATUS);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const fetchTasks = useCallback(async () => {
     const token = getAccessToken();
     if (!token) {
       router.replace('/login');
       return;
     }
 
-    const fetchTasks = async () => {
-      setLoading(true);
-      try {
-        const url = supabaseRestUrl(
-          `/project_tasks?project_id=eq.${projectId}&status=eq.${supabaseEqValue(status)}`
-        );
+    setPageState('loading');
 
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: supabaseAuthHeaders(token),
-        });
+    try {
+      const results = await Promise.all(
+        TASK_STATUSES.map(async (status) => {
+          const url = supabaseRestUrl(`/project_tasks?project_id=eq.${id}&status=eq.${status}`);
 
-        if (response.status === 401) {
-          router.replace('/login');
-          return;
-        }
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: supabaseAuthHeaders(token),
+          });
 
-        if (response.ok) {
+          if (response.status === 401) {
+            return { status, tasks: [] as Task[], unauthorized: true, ok: false };
+          }
+
+          if (!response.ok) {
+            return { status, tasks: [] as Task[], unauthorized: false, ok: false };
+          }
+
           const data: Task[] = await response.json();
-          setTasks(data);
-        }
-      } catch {
-        // Keep column empty on error
-      } finally {
-        setLoading(false);
+          return { status, tasks: data, unauthorized: false, ok: true };
+        })
+      );
+
+      if (results.some((result) => result.unauthorized)) {
+        router.replace('/login');
+        return;
       }
-    };
 
-    fetchTasks();
-  }, [projectId, status, router]);
+      if (!results.some((result) => result.ok)) {
+        setPageState('error');
+        return;
+      }
 
-  return (
-    <div className="flex w-72 shrink-0 flex-col">
-      <div className="mb-3 flex items-center gap-2 px-1">
-        <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_DOT_COLORS[status]}`} />
-        <h2 className="flex-1 text-[11px] font-bold tracking-wider text-[#0A192F] uppercase">
-          {status}
-        </h2>
-        <span className="rounded-md bg-[#E2ECFF] px-1.5 py-0.5 text-[10px] font-bold text-[#0046AD]">
-          {loading ? '…' : tasks.length}
-        </span>
-        <Link
-          href={getProjectTasksNewHref(projectId, status)}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-[#4A5568] transition-colors hover:bg-[#E2ECFF] hover:text-[#0046AD]"
-          aria-label={`Add task to ${status}`}
-        >
-          <Plus size={16} />
-        </Link>
-      </div>
+      const nextTasksByStatus = { ...EMPTY_TASKS_BY_STATUS };
+      results.forEach((result) => {
+        nextTasksByStatus[result.status] = result.tasks;
+      });
 
-      <Link
-        href={getProjectTasksNewHref(projectId, status)}
-        className="mb-3 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#CBD5E1] bg-[#F4F7FF]/40 px-3 py-3 text-[10px] font-bold tracking-wider text-[#4A5568] uppercase transition-colors hover:border-[#0046AD]/40 hover:bg-[#E2ECFF]/60 hover:text-[#0046AD]"
-      >
-        <Plus size={14} />
-        Add New Task
-      </Link>
+      setTasksByStatus(nextTasksByStatus);
 
-      <div className="flex flex-col gap-3">
-        {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 size={20} className="animate-spin text-[#0046AD]" />
-          </div>
-        ) : (
-          tasks.map((task) => <TaskCard key={task.id} task={task} status={status} />)
-        )}
-      </div>
-    </div>
-  );
-}
-
-export default function ProjectTasksPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
-  const router = useRouter();
-  const [projectName, setProjectName] = useState('');
+      const totalTasks = results.reduce((count, result) => count + result.tasks.length, 0);
+      setPageState(totalTasks === 0 ? 'empty' : 'success');
+    } catch {
+      setPageState('error');
+    }
+  }, [id, router]);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -201,12 +109,50 @@ export default function ProjectTasksPage({ params }: { params: Promise<{ id: str
     };
 
     fetchProjectName();
-  }, [id, router]);
+    // Data load intentionally triggered from effect; fetchTasks updates local UI state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- preserve existing tasks fetch flow
+    fetchTasks();
+  }, [id, router, fetchTasks]);
 
   const breadcrumbProjectName = (projectName || 'Project').toUpperCase();
 
+  const allTasks = useMemo(
+    () => TASK_STATUSES.flatMap((status) => tasksByStatus[status]),
+    [tasksByStatus]
+  );
+
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+
+  const filteredTasks = useMemo(() => {
+    if (!normalizedSearch) return allTasks;
+
+    return allTasks.filter((task) => {
+      const taskId = (task.task_id ?? task.id).toLowerCase();
+      return (
+        task.title.toLowerCase().includes(normalizedSearch) || taskId.includes(normalizedSearch)
+      );
+    });
+  }, [allTasks, normalizedSearch]);
+
+  const filteredTasksByStatus = useMemo(() => {
+    const next = { ...EMPTY_TASKS_BY_STATUS };
+
+    TASK_STATUSES.forEach((status) => {
+      next[status] = tasksByStatus[status].filter((task) =>
+        filteredTasks.some((filteredTask) => filteredTask.id === task.id)
+      );
+    });
+
+    return next;
+  }, [filteredTasks, tasksByStatus]);
+
+  const showSearchEmpty =
+    pageState === 'success' && normalizedSearch.length > 0 && filteredTasks.length === 0;
+  const showListContent = pageState === 'success' && !showSearchEmpty;
+  const showBoardContent = pageState === 'success' && !showSearchEmpty && viewMode === 'board';
+
   return (
-    <div className="mx-auto w-full max-w-[1400px]">
+    <section className="flex min-h-screen flex-col gap-6">
       <ProjectBreadcrumb
         items={[
           { label: 'Projects', href: '/project' },
@@ -215,60 +161,50 @@ export default function ProjectTasksPage({ params }: { params: Promise<{ id: str
         ]}
       />
 
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#0A192F] sm:text-3xl">
-            Active Workboard
-          </h1>
-          <p className="mt-1 text-sm text-[#4A5568]">
-            Curating {projectName || 'this project'}&apos;s production pipeline and milestones.
-          </p>
-        </div>
+      {pageState === 'loading' ? (
+        <>
+          <TasksHeaderSkeleton />
+          <TaskLoadingState viewMode={viewMode} />
+        </>
+      ) : (
+        <>
+          <TasksHeader
+            projectName={projectName}
+            projectId={id}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+          />
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative min-w-[200px] flex-1 sm:flex-none sm:w-56">
-            <Search
-              size={16}
-              className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[#0046AD]/60"
+          {pageState === 'error' && <TaskErrorState onRetry={fetchTasks} />}
+
+          {pageState === 'empty' && <TaskEmptyState projectId={id} />}
+
+          {showSearchEmpty && <TaskSearchEmptyState />}
+
+          {showListContent && viewMode === 'list' && (
+            <TasksList tasks={filteredTasks} totalCount={allTasks.length} />
+          )}
+
+          {showBoardContent && (
+            <TasksBoard
+              projectId={id}
+              tasksByStatus={filteredTasksByStatus}
+              className="hidden gap-6 overflow-x-auto pb-4 lg:flex"
             />
-            <input
-              type="search"
-              placeholder="Search tasks..."
-              className="w-full rounded-xl border border-[#CBD5E1] bg-[#F4F7FF]/60 py-2.5 pr-4 pl-9 text-sm text-[#0A192F] placeholder:text-[#4A5568]/60 focus:border-[#0046AD] focus:outline-none focus:ring-1 focus:ring-[#0046AD]"
+          )}
+
+          {showBoardContent && (
+            <TasksBoard
+              projectId={id}
+              tasksByStatus={filteredTasksByStatus}
+              className="flex gap-4 overflow-x-auto pb-4 lg:hidden"
+              columnKeyPrefix="mobile-"
             />
-          </div>
-
-          <div className="relative">
-            <LayoutGrid
-              size={16}
-              className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[#0046AD]"
-            />
-            <select
-              defaultValue="board"
-              className="appearance-none rounded-xl border border-[#CBD5E1] bg-white py-2.5 pr-8 pl-9 text-sm font-semibold text-[#0A192F] focus:border-[#0046AD] focus:outline-none focus:ring-1 focus:ring-[#0046AD]"
-            >
-              <option value="list">List View</option>
-              <option value="board">Board View</option>
-            </select>
-          </div>
-
-          <button
-            type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#CBD5E1] text-[#4A5568] transition-colors hover:bg-[#F4F7FF] hover:text-[#0046AD]"
-            aria-label="Filter tasks"
-          >
-            <SlidersHorizontal size={16} />
-          </button>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto pb-4">
-        <div className="flex gap-4">
-          {TASK_STATUSES.map((status) => (
-            <TaskColumn key={status} projectId={id} status={status} />
-          ))}
-        </div>
-      </div>
-    </div>
+          )}
+        </>
+      )}
+    </section>
   );
 }

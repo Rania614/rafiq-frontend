@@ -132,7 +132,7 @@ export default function ForgotPasswordPage() {
 
             <div className="text-center space-y-2">
               <span className="block text-[10px] font-bold uppercase tracking-widest text-[#4A5568]">
-                Didn't receive the email?
+                Didn&apos;t receive the email?
               </span>
               <button
                 type="button"

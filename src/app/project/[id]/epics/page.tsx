@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useCallback, useEffect, useRef, useState } from 'react';
+import { use, useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -11,15 +11,13 @@ import {
   ChevronRight,
   ClipboardList,
   CloudOff,
-  Compass,
   Database,
   GitBranch,
-  LayoutGrid,
   LineChart,
-  ListTodo,
   Loader2,
+  MoreVertical,
   Plus,
-  Rocket,
+  Search,
   Sparkles,
   X,
   Zap,
@@ -29,6 +27,7 @@ import { getAvatarLetters } from '@/utils/avatar';
 import { getAccessToken } from '@/utils/auth';
 import { getProjectEpicsNewHref } from '@/utils/project';
 import { supabaseAuthHeaders, supabaseRestUrl } from '@/utils/supabase';
+import { normalizeProjectMember, type ProjectMember } from '@/utils/members';
 import {
   EPICS_PAGE_SIZE,
   getPageNumbers,
@@ -52,22 +51,6 @@ interface Epic {
   assignee_id?: string | null;
 }
 
-interface ProjectMember {
-  id: string;
-  name: string;
-}
-
-function normalizeMember(raw: Record<string, unknown>): ProjectMember {
-  const metadata = (raw.user_metadata ?? raw.raw_user_meta_data) as
-    | Record<string, string>
-    | undefined;
-
-  return {
-    id: String(raw.user_id ?? raw.id ?? ''),
-    name: String(raw.name ?? raw.full_name ?? metadata?.name ?? raw.user_name ?? 'Unknown'),
-  };
-}
-
 function getDatePickerValue(dateStr?: string | null): string {
   if (!dateStr) return '';
   const date = new Date(dateStr);
@@ -77,9 +60,26 @@ function getDatePickerValue(dateStr?: string | null): string {
 
 type PageState = 'loading' | 'success' | 'error' | 'empty';
 
-function formatCreatedDate(dateStr: string): string {
+const MOBILE_QUERY = '(max-width: 767px)';
+
+const SHADOW_SM = 'shadow-[0_1px_2px_0px_#0000000d]';
+
+const GRADIENT_BUTTON_BASE = `inline-flex items-center justify-center rounded-sm bg-gradient-to-br from-[#003D9B] to-[#0052CC] text-white ${SHADOW_SM}`;
+
+const NEW_EPIC_BUTTON_CLASS = `${GRADIENT_BUTTON_BASE} gap-2 px-6 py-2.5 text-sm font-semibold transition-opacity hover:opacity-95`;
+
+const SHOWING_TEXT_CLASS = 'text-sm font-medium text-[#434654]';
+
+const PAGINATION_BUTTON_CLASS =
+  'flex size-9 items-center justify-center rounded-xs border border-[#C3C6D6] text-sm font-bold text-[#434654] transition-colors hover:bg-[#F1F3FF] disabled:cursor-not-allowed disabled:opacity-40';
+
+const EPIC_ACTION_BUTTON_CLASS =
+  'rounded-sm p-1 text-[#041B3C]/20 transition-colors hover:text-[#041B3C]/40';
+
+function formatDisplayDate(dateStr?: string | null): string {
+  if (!dateStr) return '---';
   const date = new Date(dateStr);
-  if (Number.isNaN(date.getTime())) return '';
+  if (Number.isNaN(date.getTime())) return '---';
 
   return date.toLocaleDateString('en-GB', {
     day: '2-digit',
@@ -88,17 +88,57 @@ function formatCreatedDate(dateStr: string): string {
   });
 }
 
-function EpicCardSkeleton() {
+function EpicCardSkeletonDesktop() {
   return (
-    <div className="rounded-xl border border-[#CBD5E1] bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-center gap-2">
-        <div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-[#CBD5E1]/60" />
-        <div className="h-3 w-24 animate-pulse rounded-md bg-[#CBD5E1]/40" />
+    <div
+      className={`hidden animate-pulse flex-col gap-4 rounded-lg border-s-4 border-s-[#004E32] bg-white p-4 lg:flex lg:justify-between ${SHADOW_SM}`}
+    >
+      <header className="flex items-center justify-between">
+        <div className="h-6 w-16 rounded-sm bg-[#E8EDFF]" />
+        <div className="size-6 rounded-sm bg-[#F1F3FF]" />
+      </header>
+      <div className="flex flex-col gap-3">
+        <div className="h-7 w-3/4 rounded-sm bg-[#E8EDFF]" />
+        <div className="flex items-center gap-3">
+          <div className="size-10 rounded-lg bg-[#E8EDFF]" />
+          <div className="flex flex-col gap-1">
+            <div className="h-4 w-12 rounded-sm bg-[#E8EDFF]" />
+            <div className="h-5 w-24 rounded-sm bg-[#E8EDFF]" />
+          </div>
+        </div>
       </div>
-      <div className="mb-3 h-4 w-3/4 animate-pulse rounded-md bg-[#CBD5E1]/60" />
-      <div className="space-y-2">
-        <div className="h-3 w-full animate-pulse rounded-md bg-[#CBD5E1]/40" />
-        <div className="h-3 w-5/6 animate-pulse rounded-md bg-[#CBD5E1]/40" />
+      <footer className="mt-auto flex items-end justify-between border-t border-[#F1F3FF] pt-4">
+        <div className="h-4 w-28 rounded-sm bg-[#E8EDFF]" />
+        <div className="h-4 w-20 rounded-sm bg-[#E8EDFF]" />
+      </footer>
+    </div>
+  );
+}
+
+function EpicCardSkeletonMobile() {
+  return (
+    <div
+      className={`flex min-h-48 animate-pulse flex-col gap-4 rounded-lg bg-white p-4 lg:hidden ${SHADOW_SM}`}
+    >
+      <header className="flex items-center justify-between">
+        <div className="h-6 w-16 rounded-sm bg-[#E8EDFF]" />
+        <div className="size-6 rounded-sm bg-[#F1F3FF]" />
+      </header>
+      <div className="flex h-full flex-col justify-between gap-3">
+        <div className="h-7 w-full rounded-sm bg-[#E8EDFF]" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="size-7 rounded-lg bg-[#E8EDFF]" />
+            <div className="flex flex-col gap-1">
+              <div className="h-4 w-24 rounded-sm bg-[#E8EDFF]" />
+              <div className="h-3 w-12 rounded-sm bg-[#F1F3FF]" />
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <div className="h-3 w-12 rounded-sm bg-[#F1F3FF]" />
+            <div className="h-4 w-16 rounded-sm bg-[#E8EDFF]" />
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -106,41 +146,32 @@ function EpicCardSkeleton() {
 
 function EpicsLoadingState() {
   return (
-    <>
-      <div className="mb-4 h-3 w-56 animate-pulse rounded-md bg-[#CBD5E1]/50" />
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="h-8 w-48 animate-pulse rounded-md bg-[#CBD5E1]/60" />
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-28 animate-pulse rounded-lg bg-[#CBD5E1]/50" />
-          <div className="h-9 w-28 animate-pulse rounded-lg bg-[#CBD5E1]/50" />
-          <div className="h-9 w-24 animate-pulse rounded-lg bg-[#CBD5E1]/50" />
+    <section className="flex flex-col gap-6">
+      <header className="mb-5 flex animate-pulse flex-col gap-4 lg:mb-10 lg:flex-row lg:items-center lg:justify-between">
+        <div className="h-10 w-48 max-w-full rounded-md bg-[#E8EDFF]" />
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-9">
+          <div className="h-12 w-full rounded-sm bg-[#E8EDFF] lg:w-56" />
+          <div className="hidden h-10 w-32 rounded-sm bg-[#E8EDFF] lg:block" />
         </div>
-      </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      </header>
+      <div className="mb-10 grid grid-cols-1 gap-6 md:grid-cols-2 2xl:grid-cols-3">
         {Array.from({ length: 6 }).map((_, index) => (
-          <EpicCardSkeleton key={index} />
+          <div key={index}>
+            <EpicCardSkeletonDesktop />
+            <EpicCardSkeletonMobile />
+          </div>
         ))}
       </div>
-    </>
+    </section>
   );
 }
 
 function EmptyEpicsIllustration() {
   return (
-    <div className="relative mx-auto mb-8 flex h-36 w-36 items-center justify-center rounded-3xl border border-[#CBD5E1]/60 bg-[#E2ECFF]/40">
-      <Rocket
-        size={22}
-        className="absolute left-5 top-5 text-[#0046AD]/50"
-        strokeWidth={1.5}
-      />
-      <Compass size={40} className="text-[#0046AD]/70" strokeWidth={1.5} />
-      <LayoutGrid
-        size={20}
-        className="absolute bottom-5 left-5 text-[#0046AD]/50"
-        strokeWidth={1.5}
-      />
-      <div className="absolute bottom-4 right-4 flex h-10 w-10 items-center justify-center rounded-lg border-2 border-dashed border-[#CBD5E1] bg-[#F4F7FF] text-[#0046AD]/50">
-        <Plus size={18} strokeWidth={2} />
+    <div className="relative mx-auto mb-2 flex size-48 items-center justify-center">
+      <div className="absolute inset-0 rounded-full bg-[#F1F3FF]/80 blur-2xl" />
+      <div className="relative flex size-36 items-center justify-center rounded-2xl bg-[#F1F3FF] text-[#0052CC]">
+        <GitBranch size={48} strokeWidth={1.25} />
       </div>
     </div>
   );
@@ -166,105 +197,207 @@ const EMPTY_FEATURE_CARDS = [
 
 function EmptyEpicsState({ projectId }: { projectId: string }) {
   return (
-    <div className="flex flex-col items-center px-4 py-8 text-center">
-      <EmptyEpicsIllustration />
-      <h2 className="text-2xl font-bold tracking-tight text-[#0A192F] sm:text-3xl">
-        No epics found for this project
-      </h2>
-      <p className="mt-3 max-w-xl text-sm leading-relaxed text-[#4A5568] sm:text-base">
-        Break down your large project into manageable epics to track progress better and maintain
-        architectural clarity.
-      </p>
-      <Link
-        href={getProjectEpicsNewHref(projectId)}
-        className="mt-8 inline-flex items-center gap-2 rounded-xl bg-[#0046AD] px-6 py-3.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-[#0056D2]"
-      >
-        <Zap size={16} className="shrink-0" />
-        Create First Epic
-      </Link>
+    <section className="flex items-center justify-center sm:mx-auto sm:max-w-3/4 lg:min-h-[80vh] xl:max-w-2/3">
+      <div>
+        <div className="mb-20 flex flex-col items-center justify-center gap-6">
+          <div className="flex flex-col items-center justify-center gap-4">
+            <EmptyEpicsIllustration />
+            <h2 className="text-center text-[28px] font-semibold tracking-[-0.75px] text-[#041B3C] lg:text-[36px] lg:tracking-[-0.9px]">
+              No epics in this project yet.
+            </h2>
+            <p className="mx-auto max-w-2/3 text-center text-sm leading-6 tracking-[0.6px] text-[#434654]">
+              Break down your large project into manageable epics to track progress better and
+              maintain architectural clarity.
+            </p>
+          </div>
+          <Link href={getProjectEpicsNewHref(projectId)} className={NEW_EPIC_BUTTON_CLASS}>
+            <Zap size={16} />
+            Create First Epic
+          </Link>
+        </div>
 
-      <div className="mt-12 grid w-full max-w-4xl grid-cols-1 gap-4 text-left sm:grid-cols-3">
-        {EMPTY_FEATURE_CARDS.map((card) => {
-          const Icon = card.icon;
-          return (
-            <div
-              key={card.title}
-              className="rounded-xl border border-[#CBD5E1]/60 bg-white p-5 shadow-sm"
-            >
-              <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-[#E2ECFF] text-[#0046AD]">
-                <Icon size={18} strokeWidth={1.5} />
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3">
+          {EMPTY_FEATURE_CARDS.map((card) => {
+            const Icon = card.icon;
+            return (
+              <div key={card.title} className="flex flex-col gap-3 rounded-lg bg-[#F1F3FF] p-5">
+                <div className="flex size-10 items-center justify-center rounded-sm bg-white text-[#003D9B]">
+                  <Icon size={20} strokeWidth={1.5} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <h3 className="text-base font-semibold text-[#041B3C]">{card.title}</h3>
+                  <p className="text-sm text-[#434654]">{card.description}</p>
+                </div>
               </div>
-              <h3 className="text-sm font-bold text-[#0A192F]">{card.title}</h3>
-              <p className="mt-1.5 text-xs leading-relaxed text-[#4A5568]">{card.description}</p>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </section>
   );
 }
-function AssigneeCell({ user }: { user?: EpicUser | null }) {
-  if (!user?.name) {
-    return <span className="text-sm text-[#4A5568]">—</span>;
-  }
 
+function EpicSearchInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#E2ECFF] text-[10px] font-bold text-[#0046AD]">
-        {getAvatarLetters(user.name)}
-      </div>
-      <span className="truncate text-sm font-medium text-[#0A192F]">{user.name}</span>
+    <div className="relative flex w-full items-center lg:max-w-xs">
+      <Search className="pointer-events-none absolute left-3 size-4 text-[#737685]" />
+      <input
+        type="search"
+        placeholder="search epic..."
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-sm border-0 bg-[#E0E8FF] py-3 pr-4 pl-10 text-sm text-[#434654] placeholder:text-[#737685]/70 transition-colors focus:outline focus:outline-1 focus:outline-[#003D9B]"
+      />
     </div>
   );
 }
 
-function EpicRow({ epic, onClick }: { epic: Epic; onClick: () => void }) {
+function SearchEmptyState() {
+  return (
+    <section className="flex items-center justify-center sm:mx-auto sm:max-w-3/4 lg:min-h-[50vh] xl:max-w-2/3">
+      <div className="flex flex-col items-center justify-center gap-4 text-center">
+        <div className="flex size-24 items-center justify-center rounded-2xl bg-[#F1F3FF] text-[#0052CC]">
+          <Search size={40} strokeWidth={1.25} />
+        </div>
+        <h2 className="text-2xl font-semibold tracking-[-0.75px] text-[#041B3C]">
+          No epics found matching your search
+        </h2>
+      </div>
+    </section>
+  );
+}
+
+function EpicsErrorState({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 py-16 text-center lg:min-h-[70vh]">
+      <div className="flex flex-col items-center gap-11 sm:max-w-md">
+        <div className="flex size-16 items-center justify-center rounded-2xl bg-[#FFDBD6] text-[#BA1A1A]">
+          <CloudOff size={32} strokeWidth={1.5} />
+        </div>
+        <div className="flex flex-col items-center gap-4">
+          <h2 className="text-[28px] font-semibold tracking-[-0.75px] text-[#041B3C]">
+            Something went wrong
+          </h2>
+          <p className="text-sm leading-6 text-[#434654]">
+            We&apos;re having trouble retrieving epics right now. Please try again in a moment.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRetry}
+          className={`${GRADIENT_BUTTON_BASE} px-8 py-3 text-sm font-semibold transition-opacity hover:opacity-95`}
+        >
+          Retry Connection
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function EpicCard({ epic, onClick }: { epic: Epic; onClick: () => void }) {
+  const assigneeInitials = epic.assignee?.name ? getAvatarLetters(epic.assignee.name) : 'NA';
+  const assigneeName = epic.assignee?.name ?? '---';
+  const deadlineLabel = formatDisplayDate(epic.deadline);
+  const createdByName = epic.created_by?.name ?? '---';
+
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onClick();
+    }
+  };
+
   return (
     <div
       role="button"
       tabIndex={0}
       onClick={onClick}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onClick();
-        }
-      }}
-      className="grid cursor-pointer grid-cols-1 gap-3 border-b border-[#CBD5E1]/60 px-4 py-4 last:border-b-0 hover:bg-[#F4F7FF]/50 transition-colors sm:grid-cols-[100px_1fr_160px_140px_120px] sm:items-center sm:gap-4 sm:px-6"
+      onKeyDown={handleKeyDown}
+      className="cursor-pointer text-left"
     >
-      <div>
-        <span className="text-[10px] font-bold tracking-wider text-[#4A5568] uppercase sm:hidden">
-          Epic ID
-        </span>
-        <p className="text-xs font-bold text-[#0046AD]">{epic.epic_id}</p>
+      <div
+        className={`hidden flex-col gap-4 rounded-lg border-s-4 border-s-[#004E32] bg-white p-4 lg:flex lg:justify-between ${SHADOW_SM}`}
+      >
+        <header className="flex items-center justify-between">
+          <span className="inline-flex rounded-sm bg-[#82F9BE] px-2.5 py-1 text-[10px] font-bold uppercase text-[#005235]">
+            {epic.epic_id}
+          </span>
+          <button
+            type="button"
+            className={EPIC_ACTION_BUTTON_CLASS}
+            aria-label="Epic actions"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <MoreVertical size={16} />
+          </button>
+        </header>
+
+        <div className="flex flex-col gap-3">
+          <h2 className="text-xl font-semibold text-[#041B3C]">{epic.title}</h2>
+          <div className="flex gap-3">
+            <div className="flex size-10 items-center justify-center rounded-lg bg-[#65DCA4] text-xs font-bold text-[#002113]">
+              {assigneeInitials}
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-[#434654]">Assignee</span>
+              <span className="font-semibold capitalize text-[#041B3C]">{assigneeName}</span>
+            </div>
+          </div>
+        </div>
+
+        <footer className="mt-auto flex items-end justify-between border-t border-[#F1F3FF] pt-4">
+          <div className="flex items-center gap-2 text-[11px] font-semibold">
+            <span className="text-[#434654]/80">Created by:</span>
+            <span className="capitalize text-[#041B3C]">{createdByName}</span>
+          </div>
+          <div className="flex items-center gap-2 text-[11px] font-semibold text-[#434654]/80">
+            <Calendar size={12} className="shrink-0" />
+            <span>{deadlineLabel}</span>
+          </div>
+        </footer>
       </div>
 
-      <div className="min-w-0">
-        <span className="text-[10px] font-bold tracking-wider text-[#4A5568] uppercase sm:hidden">
-          Epic
-        </span>
-        <p className="truncate text-sm font-bold text-[#0A192F]">{epic.title}</p>
-      </div>
+      <div
+        className={`flex min-h-48 flex-col gap-4 rounded-lg bg-white p-4 lg:hidden ${SHADOW_SM}`}
+      >
+        <header className="flex items-center justify-between">
+          <span className="inline-flex rounded-sm bg-[#DAE2FF] px-2.5 py-1 text-[10px] font-bold uppercase text-[#003D9B]">
+            {epic.epic_id}
+          </span>
+          <button
+            type="button"
+            className={`${EPIC_ACTION_BUTTON_CLASS} rotate-90`}
+            aria-label="Epic actions"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <MoreVertical size={16} />
+          </button>
+        </header>
 
-      <div className="min-w-0">
-        <span className="mb-1 block text-[10px] font-bold tracking-wider text-[#4A5568] uppercase sm:hidden">
-          Assignee
-        </span>
-        <AssigneeCell user={epic.assignee} />
-      </div>
-
-      <div className="min-w-0">
-        <span className="text-[10px] font-bold tracking-wider text-[#4A5568] uppercase sm:hidden">
-          Created By
-        </span>
-        <p className="truncate text-sm text-[#4A5568]">{epic.created_by?.name || '—'}</p>
-      </div>
-
-      <div>
-        <span className="text-[10px] font-bold tracking-wider text-[#4A5568] uppercase sm:hidden">
-          Created
-        </span>
-        <p className="text-sm text-[#4A5568]">{formatCreatedDate(epic.created_at)}</p>
+        <div className="flex h-full flex-col justify-between gap-3">
+          <h2 className="text-xl font-semibold text-[#041B3C]">{epic.title}</h2>
+          <div className="flex items-center justify-between">
+            <div className="flex gap-3">
+              <div className="flex size-7 items-center justify-center rounded-lg bg-[#003D9B] text-[10px] font-bold text-white">
+                {assigneeInitials}
+              </div>
+              <div className="flex flex-col">
+                <span className="font-medium capitalize text-[#041B3C]">{assigneeName}</span>
+                <span className="text-[10px] text-[#737685]">Assignee</span>
+              </div>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] font-bold uppercase text-[#737685]">deadline</span>
+              <span className="text-sm font-semibold text-[#434654]/80">{deadlineLabel}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -314,7 +447,9 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
       setLoading(true);
       setError(null);
       try {
-        const epicUrl = supabaseRestUrl(`/project_epics?project_id=eq.${projectId}&id=eq.${epicId}`);
+        const epicUrl = supabaseRestUrl(
+          `/project_epics?project_id=eq.${projectId}&id=eq.${epicId}`
+        );
         const membersUrl = supabaseRestUrl(`/get_project_members?project_id=eq.${projectId}`);
 
         const [epicRes, membersRes] = await Promise.all([
@@ -344,7 +479,7 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
 
         if (membersRes.ok) {
           const membersData: Record<string, unknown>[] = await membersRes.json();
-          setMembers(membersData.map(normalizeMember).filter((member) => member.id));
+          setMembers(membersData.map(normalizeProjectMember).filter((member) => member.id));
         }
       } catch {
         setError('Failed to load epic details');
@@ -369,7 +504,10 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
     if (!isEditingAssignee) return;
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (assigneeDropdownRef.current && !assigneeDropdownRef.current.contains(event.target as Node)) {
+      if (
+        assigneeDropdownRef.current &&
+        !assigneeDropdownRef.current.contains(event.target as Node)
+      ) {
         setIsEditingAssignee(false);
       }
     };
@@ -401,13 +539,13 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
 
   const handleSaveField = async (
     field: 'title' | 'description' | 'assignee_id' | 'deadline',
-    value: any
+    value: string | null
   ) => {
     if (!epic) return;
 
     let hasChanged = false;
     if (field === 'title') {
-      hasChanged = value.trim() !== epic.title;
+      hasChanged = (value ?? '').trim() !== epic.title;
     } else if (field === 'description') {
       hasChanged = (value || null) !== (epic.description || null);
     } else if (field === 'assignee_id') {
@@ -427,7 +565,7 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
       return;
     }
 
-    if (field === 'title' && !value.trim()) {
+    if (field === 'title' && !(value ?? '').trim()) {
       setToast({ message: 'Title is required.', type: 'error' });
       setTempTitle(epic.title);
       setIsEditingTitle(false);
@@ -445,8 +583,8 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
 
     try {
       const url = supabaseRestUrl(`/epics?id=eq.${epicId}`);
-      const payload: Record<string, any> = {};
-      if (field === 'title') payload.title = value.trim();
+      const payload: Record<string, string | null> = {};
+      if (field === 'title') payload.title = (value ?? '').trim();
       if (field === 'description') payload.description = value ? value.trim() : null;
       if (field === 'assignee_id') payload.assignee_id = value || null;
       if (field === 'deadline') payload.deadline = value || null;
@@ -463,7 +601,7 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
 
       const updatedEpic = { ...epic };
       if (field === 'title') {
-        updatedEpic.title = value.trim();
+        updatedEpic.title = (value ?? '').trim();
       }
       if (field === 'description') {
         updatedEpic.description = value ? value.trim() : null;
@@ -502,7 +640,7 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#0A192F]/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#041B3C]/60 p-4 backdrop-blur-sm"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -510,20 +648,20 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
       {toast && (
         <div
           role="status"
-          className={`fixed top-20 right-4 left-4 z-[100] mx-auto flex max-w-md items-center gap-3 rounded-xl border bg-white px-4 py-3 shadow-lg sm:right-6 sm:left-auto ${
-            toast.type === 'success' ? 'border-[#70FFB5]/40' : 'border-red-200'
+          className={`fixed top-20 right-4 left-4 z-[100] mx-auto flex max-w-md items-center gap-3 rounded-sm border bg-white px-4 py-3 ${SHADOW_SM} sm:right-6 sm:left-auto ${
+            toast.type === 'success' ? 'border-[#82F9BE]/40' : 'border-[#FFDBD6]'
           }`}
         >
           {toast.type === 'success' ? (
-            <CheckCircle2 size={18} className="shrink-0 text-[#0046AD]" />
+            <CheckCircle2 size={18} className="shrink-0 text-[#003D9B]" />
           ) : (
-            <AlertCircle size={18} className="shrink-0 text-[#D31818]" />
+            <AlertCircle size={18} className="shrink-0 text-[#BA1A1A]" />
           )}
-          <p className="flex-1 text-sm font-semibold text-[#0A192F]">{toast.message}</p>
+          <p className="flex-1 text-sm font-semibold text-[#041B3C]">{toast.message}</p>
           <button
             type="button"
             onClick={() => setToast(null)}
-            className="rounded-lg p-1 text-[#4A5568] hover:bg-[#F4F7FF]"
+            className="rounded-sm p-1 text-[#434654] transition-colors hover:bg-[#F1F3FF]"
             aria-label="Dismiss"
           >
             <X size={16} />
@@ -532,14 +670,13 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
       )}
 
       <div
-        className="relative flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl border border-[#CBD5E1] bg-white shadow-2xl transition-all"
+        className={`relative flex max-h-[90vh] w-full max-w-2xl flex-col rounded-sm bg-white ${SHADOW_SM}`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close Button */}
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-lg border border-[#CBD5E1] text-[#4A5568] transition-colors hover:border-[#0046AD] hover:bg-[#F4F7FF] hover:text-[#0046AD]"
+          className="absolute top-4 right-4 rounded-sm p-1 text-[#434654] transition-colors hover:bg-[#F1F3FF]"
           aria-label="Close details"
         >
           <X size={16} />
@@ -547,19 +684,19 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
 
         {loading ? (
           <div className="flex min-h-[300px] flex-col items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-[#0046AD]" />
-            <p className="mt-2 text-sm text-[#4A5568]">Loading details...</p>
+            <Loader2 className="h-8 w-8 animate-spin text-[#003D9B]" />
+            <p className="mt-2 text-sm text-[#434654]">Loading details...</p>
           </div>
         ) : error ? (
-          <div className="flex min-h-[300px] flex-col items-center justify-center py-12 px-6 text-center">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-[#D31818]">
+          <div className="flex min-h-[300px] flex-col items-center justify-center px-6 py-12 text-center">
+            <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-[#FFDBD6] text-[#BA1A1A]">
               <CloudOff size={24} />
             </div>
-            <h3 className="text-lg font-bold text-[#0A192F]">{error}</h3>
+            <h3 className="text-lg font-semibold text-[#041B3C]">{error}</h3>
             <button
               type="button"
               onClick={onClose}
-              className="mt-6 rounded-lg bg-[#0046AD] px-5 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#0056D2]"
+              className={`${GRADIENT_BUTTON_BASE} mt-6 px-5 py-2 text-sm font-semibold transition-opacity hover:opacity-95`}
             >
               Close
             </button>
@@ -567,7 +704,7 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
         ) : epic ? (
           <div className="flex flex-col overflow-y-auto p-6 sm:p-8">
             {/* Header: Epic Code/ID with Database Icon */}
-            <div className="flex items-center gap-1.5 text-xs font-bold text-[#0046AD]">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-[#003D9B]">
               <Database size={14} className="shrink-0" />
               <span>{epic.epic_id}</span>
             </div>
@@ -590,7 +727,7 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
                     setIsEditingTitle(false);
                   }
                 }}
-                className="mt-2 w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-xl font-bold text-[#0A192F] focus:border-[#0046AD] focus:outline-none focus:ring-1 focus:ring-[#0046AD] disabled:bg-gray-50 disabled:text-gray-500"
+                className="mt-2 w-full rounded-lg border border-[#E8EDFF] bg-white px-3 py-2 text-xl font-bold text-[#041B3C] focus:border-[#003D9B] focus:outline-none focus:ring-1 focus:ring-[#003D9B] disabled:bg-gray-50 disabled:text-gray-500"
               />
             ) : (
               <h2
@@ -600,7 +737,7 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
                     setIsEditingTitle(true);
                   }
                 }}
-                className="mt-2 cursor-pointer rounded-lg border border-transparent px-2 py-1 text-xl font-bold tracking-tight text-[#0A192F] hover:border-[#CBD5E1] hover:bg-[#F4F7FF]/30 sm:text-2xl transition-colors"
+                className="mt-2 cursor-pointer rounded-lg border border-transparent px-2 py-1 text-xl font-bold tracking-tight text-[#041B3C] hover:border-[#E8EDFF] hover:bg-[#F1F3FF]/30 sm:text-2xl transition-colors"
               >
                 {epic.title}
               </h2>
@@ -624,7 +761,7 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
                     setIsEditingDescription(false);
                   }
                 }}
-                className="mt-4 w-full resize-y rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-sm text-[#4A5568] focus:border-[#0046AD] focus:outline-none focus:ring-1 focus:ring-[#0046AD] disabled:bg-gray-50 disabled:text-gray-500"
+                className="mt-4 w-full resize-y rounded-lg border border-[#E8EDFF] bg-white px-3 py-2 text-sm text-[#434654] focus:border-[#003D9B] focus:outline-none focus:ring-1 focus:ring-[#003D9B] disabled:bg-gray-50 disabled:text-gray-500"
               />
             ) : (
               <p
@@ -634,24 +771,24 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
                     setIsEditingDescription(true);
                   }
                 }}
-                className="mt-4 cursor-pointer rounded-lg border border-transparent px-2 py-1.5 text-sm leading-relaxed text-[#4A5568] hover:border-[#CBD5E1] hover:bg-[#F4F7FF]/30 transition-colors whitespace-pre-wrap min-h-[2.5rem]"
+                className="mt-4 cursor-pointer rounded-lg border border-transparent px-2 py-1.5 text-sm leading-relaxed text-[#434654] hover:border-[#E8EDFF] hover:bg-[#F1F3FF]/30 transition-colors whitespace-pre-wrap min-h-[2.5rem]"
               >
                 {epic.description || 'No description provided'}
               </p>
             )}
 
             {/* Meta Grid: 3 Columns */}
-            <div className="mt-6 grid grid-cols-1 gap-6 border-t border-b border-[#CBD5E1]/60 py-5 sm:grid-cols-3">
+            <div className="mt-6 grid grid-cols-1 gap-6 border-t border-b border-[#E8EDFF]/60 py-5 sm:grid-cols-3">
               {/* Creator Column */}
               <div>
-                <span className="block text-[10px] font-bold tracking-wider text-[#4A5568] uppercase">
+                <span className="block text-[10px] font-bold tracking-wider text-[#434654] uppercase">
                   Created By
                 </span>
                 <div className="mt-2.5 flex items-center gap-2">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#E2ECFF] text-[10px] font-bold text-[#0046AD]">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#E0E8FF] text-[10px] font-bold text-[#003D9B]">
                     {getAvatarLetters(epic.created_by?.name || 'Unknown')}
                   </div>
-                  <span className="truncate text-sm font-semibold text-[#0A192F]">
+                  <span className="truncate text-sm font-semibold text-[#041B3C]">
                     {epic.created_by?.name || 'Unknown'}
                   </span>
                 </div>
@@ -659,7 +796,7 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
 
               {/* Assignee Column */}
               <div className="relative" ref={assigneeDropdownRef}>
-                <span className="block text-[10px] font-bold tracking-wider text-[#4A5568] uppercase">
+                <span className="block text-[10px] font-bold tracking-wider text-[#434654] uppercase">
                   Assignee
                 </span>
 
@@ -668,9 +805,9 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
                     <button
                       type="button"
                       disabled={isSaving}
-                      className="flex w-full items-center gap-2 rounded-lg border border-[#0046AD] bg-[#F4F7FF] px-2 py-1 text-left text-sm text-[#0A192F] focus:outline-none"
+                      className="flex w-full items-center gap-2 rounded-lg border border-[#003D9B] bg-[#F1F3FF] px-2 py-1 text-left text-sm text-[#041B3C] focus:outline-none"
                     >
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#CBD5E1] text-[10px] font-bold text-[#4A5568]">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#E8EDFF] text-[10px] font-bold text-[#434654]">
                         {getAvatarLetters(epic.assignee?.name || 'Unassigned')}
                       </div>
                       <span className="truncate text-sm font-semibold">
@@ -678,16 +815,16 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
                       </span>
                     </button>
 
-                    <div className="absolute left-0 mt-1 z-[100] w-64 rounded-xl border border-[#CBD5E1] bg-white p-1 shadow-lg max-h-60 overflow-y-auto">
+                    <div className="absolute left-0 mt-1 z-[100] w-64 rounded-xl border border-[#E8EDFF] bg-white p-1 shadow-lg max-h-60 overflow-y-auto">
                       <button
                         type="button"
                         onClick={() => handleSaveField('assignee_id', null)}
-                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-[#F4F7FF] transition-colors"
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-[#F1F3FF] transition-colors"
                       >
                         <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-[10px] font-bold text-gray-500">
                           —
                         </div>
-                        <span className="font-medium text-[#4A5568]">Unassigned</span>
+                        <span className="font-medium text-[#434654]">Unassigned</span>
                       </button>
 
                       {members.map((member) => (
@@ -695,14 +832,12 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
                           key={member.id}
                           type="button"
                           onClick={() => handleSaveField('assignee_id', member.id)}
-                          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-[#F4F7FF] transition-colors"
+                          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-[#F1F3FF] transition-colors"
                         >
-                          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#E2ECFF] text-[10px] font-bold text-[#0046AD]">
+                          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#E0E8FF] text-[10px] font-bold text-[#003D9B]">
                             {getAvatarLetters(member.name)}
                           </div>
-                          <span className="truncate font-medium text-[#0A192F]">
-                            {member.name}
-                          </span>
+                          <span className="truncate font-medium text-[#041B3C]">{member.name}</span>
                         </button>
                       ))}
                     </div>
@@ -714,12 +849,12 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
                         setIsEditingAssignee(true);
                       }
                     }}
-                    className="mt-2.5 flex cursor-pointer items-center gap-2 rounded-lg border border-transparent p-1 transition-colors hover:border-[#CBD5E1] hover:bg-[#F4F7FF]/30"
+                    className="mt-2.5 flex cursor-pointer items-center gap-2 rounded-lg border border-transparent p-1 transition-colors hover:border-[#E8EDFF] hover:bg-[#F1F3FF]/30"
                   >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#E2ECFF] text-[10px] font-bold text-[#0046AD]">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#E0E8FF] text-[10px] font-bold text-[#003D9B]">
                       {getAvatarLetters(epic.assignee?.name || 'Unassigned')}
                     </div>
-                    <span className="truncate text-sm font-semibold text-[#0A192F]">
+                    <span className="truncate text-sm font-semibold text-[#041B3C]">
                       {epic.assignee?.name || 'Unassigned'}
                     </span>
                   </div>
@@ -728,7 +863,7 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
 
               {/* Deadline Column */}
               <div>
-                <span className="block text-[10px] font-bold tracking-wider text-[#4A5568] uppercase">
+                <span className="block text-[10px] font-bold tracking-wider text-[#434654] uppercase">
                   Deadline
                 </span>
 
@@ -745,7 +880,7 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
                         setIsEditingDeadline(false);
                       }
                     }}
-                    className="mt-2.5 w-full rounded-lg border border-[#CBD5E1] bg-white px-2 py-1 text-sm text-[#0A192F] focus:border-[#0046AD] focus:outline-none"
+                    className="mt-2.5 w-full rounded-lg border border-[#E8EDFF] bg-white px-2 py-1 text-sm text-[#041B3C] focus:border-[#003D9B] focus:outline-none"
                   />
                 ) : (
                   <div
@@ -754,9 +889,9 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
                         setIsEditingDeadline(true);
                       }
                     }}
-                    className="mt-2.5 flex cursor-pointer items-center gap-1.5 rounded-lg border border-transparent p-1 text-sm font-semibold text-[#0A192F] transition-colors hover:border-[#CBD5E1] hover:bg-[#F4F7FF]/30"
+                    className="mt-2.5 flex cursor-pointer items-center gap-1.5 rounded-lg border border-transparent p-1 text-sm font-semibold text-[#041B3C] transition-colors hover:border-[#E8EDFF] hover:bg-[#F1F3FF]/30"
                   >
-                    <Calendar size={15} className="shrink-0 text-[#4A5568]" />
+                    <Calendar size={15} className="shrink-0 text-[#434654]" />
                     <span>{formatDate(epic.deadline)}</span>
                   </div>
                 )}
@@ -764,7 +899,7 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
             </div>
 
             {/* Created At Detail */}
-            <div className="mt-4 flex items-center gap-1.5 text-xs text-[#4A5568]">
+            <div className="mt-4 flex items-center gap-1.5 text-xs text-[#434654]">
               <span className="font-bold uppercase tracking-wider text-[10px]">Created At:</span>
               <Calendar size={13} className="shrink-0" />
               <span>{formatDate(epic.created_at)}</span>
@@ -773,28 +908,28 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
             {/* Epic Tasks Section */}
             <div className="mt-8">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-[#0A192F]">Tasks</h3>
+                <h3 className="text-sm font-bold text-[#041B3C]">Tasks</h3>
                 <button
                   type="button"
                   onClick={() => router.push(`/project/${projectId}/tasks/new?epic_id=${epic.id}`)}
-                  className="flex items-center gap-1 text-xs font-bold text-[#0046AD] hover:underline"
+                  className="flex items-center gap-1 text-xs font-bold text-[#003D9B] hover:underline"
                 >
                   + Add Task
                 </button>
               </div>
 
               {/* Tasks Empty State Container */}
-              <div className="mt-3 flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#CBD5E1] bg-[#F4F7FF]/30 p-8 text-center">
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#E2ECFF] text-[#0046AD]">
+              <div className="mt-3 flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#E8EDFF] bg-[#F1F3FF]/30 p-8 text-center">
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#E0E8FF] text-[#003D9B]">
                   <ClipboardList size={20} />
                 </div>
-                <p className="text-xs font-medium text-[#4A5568]">
+                <p className="text-xs font-medium text-[#434654]">
                   No tasks have been added to this epic yet
                 </p>
                 <button
                   type="button"
                   onClick={() => router.push(`/project/${projectId}/tasks/new?epic_id=${epic.id}`)}
-                  className="mt-4 rounded-lg bg-[#0046AD] px-4 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:bg-[#0056D2]"
+                  className="mt-4 rounded-lg bg-[#003D9B] px-4 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:bg-[#0056D2]"
                 >
                   + Add Task
                 </button>
@@ -807,8 +942,6 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
   );
 }
 
-const MOBILE_QUERY = '(max-width: 767px)';
-
 export default function ProjectEpicsPage({ params }: { params: Promise<{ id: string }> }) {
   // Unwrapping the route params to get the project ID
   const { id } = use(params);
@@ -816,7 +949,7 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
 
   // Reference for the hidden 'sentinel' element at the bottom of the list for infinite scrolling
   const loadMoreRef = useRef<HTMLDivElement>(null);
-  
+
   // A ref to keep track of loading state synchronously inside event handlers & observers
   const isLoadingMoreRef = useRef(false);
 
@@ -826,6 +959,7 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
 
   // State to manage the active/selected epic for the details popup
   const [selectedEpicId, setSelectedEpicId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // State management for pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -837,8 +971,16 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
 
   // Calculate total pages needed using Math.ceil(totalCount / EPICS_PAGE_SIZE)
   const totalPages = getTotalPages(totalCount, EPICS_PAGE_SIZE);
-  const isLastPage = currentPage >= totalPages;
   const hasMoreMobile = epics.length < totalCount;
+
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const filteredEpics = normalizedSearch
+    ? epics.filter(
+        (epic) =>
+          epic.title.toLowerCase().includes(normalizedSearch) ||
+          epic.epic_id.toLowerCase().includes(normalizedSearch)
+      )
+    : epics;
 
   // Track the last project ID we fetched, to detect when it changes
   const lastProjectIdRef = useRef(id);
@@ -864,8 +1006,10 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
 
       try {
         // Construct the URL with required filter, limit, and offset parameters
-        const url = supabaseRestUrl(`/project_epics?project_id=eq.${id}&limit=${EPICS_PAGE_SIZE}&offset=${offset}`);
-        
+        const url = supabaseRestUrl(
+          `/project_epics?project_id=eq.${id}&limit=${EPICS_PAGE_SIZE}&offset=${offset}`
+        );
+
         const response = await fetch(url, {
           method: 'GET',
           headers: {
@@ -894,7 +1038,7 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
 
         // If 'append' is true (mobile scroll), merge new data; otherwise, replace it (desktop pagination)
         setEpics((prev) => (append ? [...prev, ...data] : data));
-        
+
         // Determine page state: empty if total records is 0, success otherwise
         setPageState(total === 0 ? 'empty' : 'success');
       } catch {
@@ -913,7 +1057,16 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
    */
   useEffect(() => {
     const mediaQuery = window.matchMedia(MOBILE_QUERY);
-    const updateIsMobile = () => setIsMobile(mediaQuery.matches);
+    const updateIsMobile = () => {
+      const matches = mediaQuery.matches;
+      setIsMobile((wasMobile) => {
+        if (matches !== wasMobile) {
+          setCurrentPage(1);
+          setEpics([]);
+        }
+        return matches;
+      });
+    };
 
     updateIsMobile();
     mediaQuery.addEventListener('change', updateIsMobile);
@@ -930,19 +1083,19 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
       lastProjectIdRef.current = id;
       setCurrentPage(1);
       setEpics([]);
+
       fetchEpics({ offset: 0, append: false });
       return;
     }
 
     if (isMobile) {
-      // In mobile view, we always start from page 1 and append.
-      setCurrentPage(1);
-      setEpics([]);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- preserve existing epics fetch flow
       fetchEpics({ offset: 0, append: false });
       return;
     }
 
     // Desktop: fetch the exact slice of records for the active page
+
     fetchEpics({
       offset: (currentPage - 1) * EPICS_PAGE_SIZE,
       append: false,
@@ -984,14 +1137,40 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
   const pageNumbers = getPageNumbers(currentPage, totalPages);
 
   // Format the helper text showing the pagination boundaries
-  const showingText = isMobile
-    ? `Showing ${epics.length} of ${totalCount} epics`
-    : `Showing ${rangeStart + 1}-${rangeEnd + 1} of ${totalCount} epics`;
+  const showingText = normalizedSearch
+    ? `Showing ${filteredEpics.length} of ${totalCount} active epics`
+    : isMobile
+      ? `Showing ${epics.length} of ${totalCount} active epics`
+      : `Showing ${rangeStart + 1}-${rangeEnd + 1} of ${totalCount} active epics`;
+
+  const handleRetry = () => {
+    if (isMobile) {
+      fetchEpics({ offset: 0, append: false });
+      return;
+    }
+
+    fetchEpics({
+      offset: (currentPage - 1) * EPICS_PAGE_SIZE,
+      append: false,
+    });
+  };
+
+  const showEpicsGrid = pageState === 'success' && (!normalizedSearch || filteredEpics.length > 0);
+  const showSearchEmpty = pageState === 'success' && normalizedSearch && filteredEpics.length === 0;
 
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <section className="flex min-h-screen flex-col">
       {pageState === 'loading' ? (
-        <EpicsLoadingState />
+        <>
+          <ProjectBreadcrumb
+            items={[
+              { label: 'Projects', href: '/project' },
+              { label: 'Project' },
+              { label: 'Epics', active: true },
+            ]}
+          />
+          <EpicsLoadingState />
+        </>
       ) : (
         <>
           <ProjectBreadcrumb
@@ -1002,125 +1181,118 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
             ]}
           />
 
-          <h1 className="mb-6 text-2xl font-bold tracking-tight text-[#0A192F] sm:text-3xl">
-            Project Epics
-          </h1>
-        </>
-      )}
-
-      {pageState === 'error' && (
-        <div className="flex min-h-[360px] flex-col items-center justify-center rounded-xl border border-[#CBD5E1] bg-white px-4 py-16 text-center shadow-sm">
-          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50 text-[#D31818]">
-            <CloudOff size={32} strokeWidth={1.5} />
-          </div>
-          <h2 className="text-xl font-bold tracking-tight text-[#0A192F] sm:text-2xl">
-            Failed to load epics
-          </h2>
-          <p className="mt-3 max-w-md text-sm leading-relaxed text-[#4A5568]">
-            We&apos;re having trouble retrieving epics right now. Please try again in a moment.
-          </p>
-        </div>
-      )}
-
-      {pageState === 'empty' && <EmptyEpicsState projectId={id} />}
-
-      {pageState === 'success' && (
-        <>
-          <div className="overflow-hidden rounded-xl border border-[#CBD5E1] bg-white shadow-sm">
-            <div className="hidden border-b border-[#CBD5E1]/60 px-6 py-3 sm:grid sm:grid-cols-[100px_1fr_160px_140px_120px] sm:gap-4">
-              <span className="text-[10px] font-bold tracking-wider text-[#4A5568] uppercase">
-                Epic ID
-              </span>
-              <span className="text-[10px] font-bold tracking-wider text-[#4A5568] uppercase">
-                Epic
-              </span>
-              <span className="text-[10px] font-bold tracking-wider text-[#4A5568] uppercase">
-                Assignee
-              </span>
-              <span className="text-[10px] font-bold tracking-wider text-[#4A5568] uppercase">
-                Created By
-              </span>
-              <span className="text-[10px] font-bold tracking-wider text-[#4A5568] uppercase">
-                Created
-              </span>
-            </div>
-
-            {epics.map((epic) => (
-              <EpicRow key={epic.id} epic={epic} onClick={() => setSelectedEpicId(epic.id)} />
-            ))}
-          </div>
-
-          {/* Infinite Scroll loading indicator for Mobile */}
-          {isMobile && isLoadingMore && (
-            <div className="mt-6 flex items-center justify-center gap-2 text-sm text-[#4A5568]">
-              <Loader2 size={18} className="animate-spin text-[#0046AD]" />
-              Loading more epics...
-            </div>
-          )}
-
-          {/* Sentinel element to trigger load next page when visible */}
-          {isMobile && hasMoreMobile && <div ref={loadMoreRef} className="h-4" aria-hidden />}
-
-          {/* Desktop Pagination Controls */}
-          {!isMobile && totalPages > 1 && (
-            <div className="mt-8 flex flex-col gap-4 border-t border-[#CBD5E1]/60 pt-6 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs font-medium text-[#4A5568]">{showingText}</p>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#CBD5E1] text-[#4A5568] transition-colors hover:bg-[#F4F7FF] disabled:cursor-not-allowed disabled:border-[#CBD5E1] disabled:text-[#CBD5E1]"
-                  aria-label="Previous page"
+          {pageState !== 'empty' && (
+            <header className="mb-5 flex flex-col gap-4 lg:mb-10 lg:flex-row lg:items-center lg:justify-between">
+              <h1 className="w-full flex-1 text-[30px] font-semibold capitalize leading-9 tracking-[-0.75px] text-[#041B3C] lg:text-[36px] lg:leading-10 lg:tracking-[-0.9px]">
+                project epics
+              </h1>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-9">
+                <EpicSearchInput value={searchTerm} onChange={setSearchTerm} />
+                <Link
+                  href={getProjectEpicsNewHref(id)}
+                  className={`${NEW_EPIC_BUTTON_CLASS} hidden lg:inline-flex`}
                 >
-                  <ChevronLeft size={16} />
-                </button>
-
-                {pageNumbers.map((page, index) => {
-                  const prevPage = pageNumbers[index - 1];
-                  const showEllipsis = prevPage !== undefined && page - prevPage > 1;
-
-                  return (
-                    <span key={page} className="flex items-center gap-1">
-                      {showEllipsis && (
-                        <span className="px-1 text-xs text-[#4A5568]">...</span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handlePageChange(page)}
-                        className={`flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors ${
-                          page === currentPage
-                            ? 'bg-[#0046AD] font-bold text-white'
-                            : 'border border-[#CBD5E1] text-[#4A5568] hover:bg-[#F4F7FF]'
-                        }`}
-                      >
-                        {page}
-                      </button>
-                    </span>
-                  );
-                })}
-
-                <button
-                  type="button"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage >= totalPages}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#CBD5E1] text-[#4A5568] transition-colors hover:bg-[#F4F7FF] disabled:cursor-not-allowed disabled:border-[#CBD5E1] disabled:text-[#CBD5E1]"
-                  aria-label="Next page"
-                >
-                  <ChevronRight size={16} />
-                </button>
+                  <Plus size={16} />
+                  new epic
+                </Link>
               </div>
-            </div>
+            </header>
           )}
 
-          {/* Simple footer count display for mobile screens */}
-          {isMobile && totalCount > 0 && (
-            <p className="mt-6 text-center text-xs font-medium text-[#4A5568]">{showingText}</p>
+          {pageState === 'error' && <EpicsErrorState onRetry={handleRetry} />}
+
+          {pageState === 'empty' && <EmptyEpicsState projectId={id} />}
+
+          {showSearchEmpty && <SearchEmptyState />}
+
+          {showEpicsGrid && (
+            <>
+              <div className="mb-10 grid grid-cols-1 gap-6 md:grid-cols-2 2xl:grid-cols-3">
+                {filteredEpics.map((epic) => (
+                  <EpicCard key={epic.id} epic={epic} onClick={() => setSelectedEpicId(epic.id)} />
+                ))}
+              </div>
+
+              {isMobile && isLoadingMore && (
+                <div className="mb-6 flex items-center justify-center gap-2 text-sm text-[#434654]">
+                  <Loader2 size={18} className="animate-spin text-[#003D9B]" />
+                  Loading more epics...
+                </div>
+              )}
+
+              {isMobile && hasMoreMobile && !normalizedSearch && (
+                <div ref={loadMoreRef} className="h-4" aria-hidden />
+              )}
+
+              <footer className="hidden flex-col items-center justify-center gap-6 lg:flex lg:flex-row lg:justify-between">
+                <p className={SHOWING_TEXT_CLASS}>{showingText}</p>
+                {!isMobile && !normalizedSearch && totalPages > 1 && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className={PAGINATION_BUTTON_CLASS}
+                      aria-label="Previous page"
+                    >
+                      <ChevronLeft size={14} />
+                    </button>
+
+                    {pageNumbers.map((page, index) => {
+                      const prevPage = pageNumbers[index - 1];
+                      const showEllipsis = prevPage !== undefined && page - prevPage > 1;
+
+                      return (
+                        <span key={page} className="flex items-center gap-2">
+                          {showEllipsis && (
+                            <span className="flex size-9 items-center justify-center text-sm font-bold text-[#434654]">
+                              ...
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handlePageChange(page)}
+                            className={`${PAGINATION_BUTTON_CLASS} ${
+                              page === currentPage ? 'border-[#003D9B] bg-[#003D9B] text-white' : ''
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        </span>
+                      );
+                    })}
+
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage >= totalPages}
+                      className={PAGINATION_BUTTON_CLASS}
+                      aria-label="Next page"
+                    >
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                )}
+              </footer>
+
+              {isMobile && totalCount > 0 && (
+                <p className={`${SHOWING_TEXT_CLASS} mb-6 text-center`}>{showingText}</p>
+              )}
+            </>
+          )}
+
+          {pageState === 'success' && (
+            <Link
+              href={getProjectEpicsNewHref(id)}
+              className={`fixed bottom-20 right-6 z-40 flex size-14 items-center justify-center rounded-full ${GRADIENT_BUTTON_BASE} transition-opacity hover:opacity-95 lg:hidden`}
+              aria-label="Create new epic"
+            >
+              <Plus size={22} />
+            </Link>
           )}
         </>
       )}
 
-      {/* Render the details popup when an epic is selected */}
       {selectedEpicId && (
         <EpicDetailsModal
           epicId={selectedEpicId}
@@ -1133,6 +1305,6 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
           }}
         />
       )}
-    </div>
+    </section>
   );
 }

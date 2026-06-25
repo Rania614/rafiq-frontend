@@ -16,7 +16,7 @@ const cookieDefaults = {
 
 /**
  * Retrieves the current access token from cookies or local storage.
- * 
+ *
  * @returns The access token string, or an empty string if not found.
  */
 export function getAccessToken(): string {
@@ -26,7 +26,7 @@ export function getAccessToken(): string {
 /**
  * Persists the authentication session tokens and user data.
  * Stores in cookies for general access and local storage as a fallback.
- * 
+ *
  * @param session - The authentication session details to save.
  * @param rememberMe - Whether to persist the session for 30 days (true) or session-only (false).
  */
@@ -63,7 +63,7 @@ export function clearAuthSession(): void {
 
 /**
  * Safely parses the error response from the Supabase API to extract a readable error message.
- * 
+ *
  * @param response - The raw Fetch API Response object.
  * @param fallback - A default error message to return if parsing fails.
  * @returns A promise resolving to the extracted error message.
@@ -79,7 +79,7 @@ export async function parseSupabaseError(response: Response, fallback: string): 
 
 /**
  * Normalizes user metadata from different potential Supabase formats into a unified structure.
- * 
+ *
  * @param user - The raw user object returned from Supabase.
  * @returns A normalized user profile object containing email, name, and job title.
  */

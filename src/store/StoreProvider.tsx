@@ -1,10 +1,10 @@
 'use client';
 
-import { useRef } from 'react';
+import { useState } from 'react';
 import { Provider } from 'react-redux';
-import { store, AppDispatch } from './index';
+import { store } from './index';
 
 export default function StoreProvider({ children }: { children: React.ReactNode }) {
-  const storeRef = useRef(store);
-  return <Provider store={storeRef.current}>{children}</Provider>;
+  const [storeInstance] = useState(() => store);
+  return <Provider store={storeInstance}>{children}</Provider>;
 }

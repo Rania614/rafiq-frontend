@@ -43,8 +43,9 @@ export const fetchCurrentUser = createAsyncThunk(
 
       const data = await response.json();
       return normalizeUserProfile(data);
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Something went wrong');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Something went wrong';
+      return rejectWithValue(message);
     }
   }
 );

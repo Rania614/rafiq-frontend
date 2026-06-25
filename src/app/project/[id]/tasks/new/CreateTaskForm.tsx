@@ -9,12 +9,13 @@ import { AlertCircle, Loader2 } from 'lucide-react';
 import ProjectBreadcrumb from '@/app/components/ProjectBreadcrumb';
 import { getAccessToken } from '@/utils/auth';
 import { getProjectTasksHref, setCurrentProjectId } from '@/utils/project';
-import { TASK_STATUSES, type TaskStatus } from '@/utils/tasks';
 import {
-  parseSupabaseRestError,
-  supabaseAuthHeaders,
-  supabaseRestUrl,
-} from '@/utils/supabase';
+  DEFAULT_TASK_STATUS,
+  normalizeTaskStatus,
+  TASK_STATUSES,
+  TASK_STATUS_LABELS,
+} from '@/utils/tasks';
+import { parseSupabaseRestError, supabaseAuthHeaders, supabaseRestUrl } from '@/utils/supabase';
 
 interface ProjectMember {
   id: string;
@@ -68,12 +69,8 @@ export default function CreateTaskForm({ params }: { params: Promise<{ id: strin
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Parse status query parameter (handle both space and underscore format)
-  const rawStatus = searchParams.get('status') ?? 'TO DO';
-  const statusParam = rawStatus.replace(/_/g, ' ');
-  const initialStatus = TASK_STATUSES.includes(statusParam as TaskStatus)
-    ? (statusParam as TaskStatus)
-    : 'TO DO';
+  const rawStatus = searchParams.get('status') ?? DEFAULT_TASK_STATUS;
+  const initialStatus = normalizeTaskStatus(rawStatus) ?? DEFAULT_TASK_STATUS;
 
   const epicIdParam = searchParams.get('epic_id') ?? '';
 
@@ -185,11 +182,10 @@ export default function CreateTaskForm({ params }: { params: Promise<{ id: strin
       return;
     }
 
-    // Build the request body mapping space status to underscore status
-    const body: Record<string, any> = {
+    const body: Record<string, string> = {
       project_id: projectId,
       title: values.title.trim(),
-      status: values.status.replace(/ /g, '_'),
+      status: values.status,
     };
 
     if (values.description?.trim()) {
@@ -302,7 +298,7 @@ export default function CreateTaskForm({ params }: { params: Promise<{ id: strin
               >
                 {TASK_STATUSES.map((status) => (
                   <option key={status} value={status}>
-                    {status}
+                    {TASK_STATUS_LABELS[status]}
                   </option>
                 ))}
               </select>
@@ -347,14 +343,10 @@ export default function CreateTaskForm({ params }: { params: Promise<{ id: strin
               disabled={isFetchingData}
               className="w-full appearance-none rounded-lg border border-[#CBD5E1] bg-[#E2ECFF]/30 px-4 py-3 text-sm text-[#0A192F] transition-colors focus:border-[#0046AD] focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <option value="">
-                {isFetchingData ? 'Loading epics...' : 'Select Epic Link'}
-              </option>
+              <option value="">{isFetchingData ? 'Loading epics...' : 'Select Epic Link'}</option>
               {epics.map((epic) => {
                 const displayTitle =
-                  epic.title.length > 100
-                    ? `${epic.title.slice(0, 100)}...`
-                    : epic.title;
+                  epic.title.length > 100 ? `${epic.title.slice(0, 100)}...` : epic.title;
                 return (
                   <option key={epic.id} value={epic.id}>
                     {epic.epic_id} {displayTitle}

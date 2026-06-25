@@ -1,5 +1,8 @@
 function normalizeSupabaseUrl(raw: string): string {
-  return raw.trim().replace(/\/+$/, '').replace(/\/rest\/v1$/, '');
+  return raw
+    .trim()
+    .replace(/\/+$/, '')
+    .replace(/\/rest\/v1$/, '');
 }
 
 function readSupabaseUrl(): string {
