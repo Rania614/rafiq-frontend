@@ -7,6 +7,7 @@ import { getAccessToken } from '@/utils/auth';
 import { setCurrentProjectId } from '@/utils/project';
 import { supabaseAuthHeaders, supabaseRestUrl } from '@/utils/supabase';
 import { TASK_STATUSES } from '@/utils/tasks';
+import TaskDetailsModal from './components/TaskDetailsModal';
 import TaskEmptyState from './components/TaskEmptyState';
 import TaskErrorState from './components/TaskErrorState';
 import TaskLoadingState from './components/TaskLoadingState';
@@ -31,6 +32,15 @@ export default function ProjectTasksPage({ params }: { params: Promise<{ id: str
   const [pageState, setPageState] = useState<PageState>('loading');
   const [projectName, setProjectName] = useState('');
   const [tasksByStatus, setTasksByStatus] = useState(() => groupTasksByStatus([]));
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+  const handleOpenTaskDetails = useCallback((taskId: string) => {
+    setSelectedTaskId(taskId);
+  }, []);
+
+  const handleCloseTaskDetails = useCallback(() => {
+    setSelectedTaskId(null);
+  }, []);
 
   const handleViewModeChange = useCallback(
     (mode: ViewMode) => {
@@ -148,15 +158,28 @@ export default function ProjectTasksPage({ params }: { params: Promise<{ id: str
           {pageState === 'empty' && <TaskEmptyState projectId={id} />}
 
           {showListContent && (
-            <TasksList projectId={id} tasks={allTasks} totalCount={allTasks.length} />
+            <TasksList
+              projectId={id}
+              tasks={allTasks}
+              totalCount={allTasks.length}
+              onOpenTaskDetails={handleOpenTaskDetails}
+            />
           )}
 
           {showBoardContent && (
             <div className={BOARD_SCROLL_CONTAINER_CLASS}>
-              <TasksBoard projectId={id} tasksByStatus={tasksByStatus} />
+              <TasksBoard
+                projectId={id}
+                tasksByStatus={tasksByStatus}
+                onOpenTaskDetails={handleOpenTaskDetails}
+              />
             </div>
           )}
         </>
+      )}
+
+      {selectedTaskId && (
+        <TaskDetailsModal taskId={selectedTaskId} projectId={id} onClose={handleCloseTaskDetails} />
       )}
     </section>
   );

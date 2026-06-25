@@ -12,14 +12,32 @@ interface TasksListProps {
   projectId: string;
   tasks: Task[];
   totalCount: number;
+  onOpenTaskDetails: (taskId: string) => void;
 }
 
-function TaskMobileCard({ task }: { task: Task }) {
+function TaskMobileCard({
+  task,
+  onOpenTaskDetails,
+}: {
+  task: Task;
+  onOpenTaskDetails: (taskId: string) => void;
+}) {
   const assigneeName = task.assignee?.name;
   const avatarSeed = assigneeName || task.id;
 
   return (
-    <div className={`flex flex-col gap-3 rounded-lg bg-white p-4 ${SHADOW_SM}`}>
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpenTaskDetails(task.id)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onOpenTaskDetails(task.id);
+        }
+      }}
+      className={`flex w-full cursor-pointer flex-col gap-3 rounded-lg bg-white p-4 text-left transition-colors hover:bg-[#F1F3FF] ${SHADOW_SM}`}
+    >
       <div>
         <div className="flex items-center justify-between gap-3">
           <span className="text-[10px] font-bold tracking-[0.6px] text-[#434654]/50 uppercase">
@@ -46,6 +64,9 @@ function TaskMobileCard({ task }: { task: Task }) {
         </div>
         <button
           type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
           className="rounded-sm p-0.5 text-[#434654]/40"
           aria-label={`Actions for ${task.title}`}
         >
@@ -56,7 +77,12 @@ function TaskMobileCard({ task }: { task: Task }) {
   );
 }
 
-export default function TasksList({ projectId, tasks, totalCount }: TasksListProps) {
+export default function TasksList({
+  projectId,
+  tasks,
+  totalCount,
+  onOpenTaskDetails,
+}: TasksListProps) {
   const addTaskHref = `/project/${projectId}/tasks/new`;
 
   return (
@@ -77,7 +103,7 @@ export default function TasksList({ projectId, tasks, totalCount }: TasksListPro
           </thead>
           <tbody>
             {tasks.map((task) => (
-              <TaskRow key={task.id} task={task} />
+              <TaskRow key={task.id} task={task} onOpenTaskDetails={onOpenTaskDetails} />
             ))}
           </tbody>
         </table>
@@ -85,7 +111,7 @@ export default function TasksList({ projectId, tasks, totalCount }: TasksListPro
 
       <div className="flex flex-col gap-3 lg:hidden">
         {tasks.map((task) => (
-          <TaskMobileCard key={task.id} task={task} />
+          <TaskMobileCard key={task.id} task={task} onOpenTaskDetails={onOpenTaskDetails} />
         ))}
       </div>
 

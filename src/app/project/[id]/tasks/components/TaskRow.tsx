@@ -7,14 +7,18 @@ import TaskStatusBadge from './TaskStatusBadge';
 
 interface TaskRowProps {
   task: Task;
+  onOpenTaskDetails: (taskId: string) => void;
 }
 
-export default function TaskRow({ task }: TaskRowProps) {
+export default function TaskRow({ task, onOpenTaskDetails }: TaskRowProps) {
   const assigneeName = task.assignee?.name;
   const avatarSeed = assigneeName || task.id;
 
   return (
-    <tr className="border-b border-[#F1F3FF] bg-white last:border-b-0">
+    <tr
+      className="cursor-pointer border-b border-[#F1F3FF] bg-white last:border-b-0 transition-colors hover:bg-[#F1F3FF]/40"
+      onClick={() => onOpenTaskDetails(task.id)}
+    >
       <td className={`${TABLE_CELL_CLASS} w-2/12 uppercase text-[#003D9B]`}>
         {task.task_id ?? task.id.slice(0, 8)}
       </td>
@@ -38,6 +42,7 @@ export default function TaskRow({ task }: TaskRowProps) {
       <td className={`${TABLE_CELL_CLASS} w-12 text-right`}>
         <button
           type="button"
+          onClick={(event) => event.stopPropagation()}
           className="rounded-sm p-0.5 text-[#041B3C]/20 transition-colors hover:text-[#041B3C]/40"
           aria-label={`Actions for ${task.title}`}
         >
