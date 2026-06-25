@@ -3,21 +3,11 @@
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  AlertTriangle,
-  LayoutGrid,
-  Loader2,
-  Plus,
-  Search,
-  SlidersHorizontal,
-} from 'lucide-react';
+import { AlertTriangle, LayoutGrid, Loader2, Plus, Search, SlidersHorizontal } from 'lucide-react';
 import ProjectBreadcrumb from '@/app/components/ProjectBreadcrumb';
 import { getAvatarLetters } from '@/utils/avatar';
 import { getAccessToken } from '@/utils/auth';
-import {
-  getProjectTasksNewHref,
-  setCurrentProjectId,
-} from '@/utils/project';
+import { getProjectTasksNewHref, setCurrentProjectId } from '@/utils/project';
 import { supabaseAuthHeaders, supabaseRestUrl } from '@/utils/supabase';
 import {
   formatTaskCardDate,

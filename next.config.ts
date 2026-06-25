@@ -17,7 +17,10 @@ if (!supabaseAnonKeyEnv?.trim()) {
   );
 }
 
-const supabaseUrl = supabaseUrlEnv.trim().replace(/\/+$/, '').replace(/\/rest\/v1$/, '');
+const supabaseUrl = supabaseUrlEnv
+  .trim()
+  .replace(/\/+$/, '')
+  .replace(/\/rest\/v1$/, '');
 
 if (!supabaseUrl.startsWith('http://') && !supabaseUrl.startsWith('https://')) {
   throw new Error(

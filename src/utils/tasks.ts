@@ -43,7 +43,5 @@ export function formatTaskCardDate(dateStr?: string | null): string {
     return 'TODAY';
   }
 
-  return date
-    .toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    .toUpperCase();
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
 }

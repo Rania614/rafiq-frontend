@@ -19,7 +19,7 @@ export interface ContentRange {
 
 /**
  * Parses the Supabase Content-Range header to extract pagination metadata.
- * 
+ *
  * @param header - The raw Content-Range header string (e.g., "0-9/50" or "0-9/*").
  * @returns An object containing the start index, end index, and total count.
  */
@@ -44,7 +44,7 @@ export function parseContentRange(header: string | null): ContentRange {
 
 /**
  * Calculates the total number of pages based on the total item count and page size.
- * 
+ *
  * @param totalCount - Total number of items available.
  * @param pageSize - Number of items per page.
  * @returns The total number of pages required.
@@ -57,7 +57,7 @@ export function getTotalPages(totalCount: number, pageSize: number): number {
 /**
  * Generates an array of page numbers to display in the pagination component,
  * optimizing the view to show first, current, last, and adjacent pages.
- * 
+ *
  * @param currentPage - The currently active page index.
  * @param totalPages - The total number of pages available.
  * @returns An array of page numbers to render.

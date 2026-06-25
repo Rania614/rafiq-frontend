@@ -104,7 +104,10 @@ export default function SignUpPage() {
 
       if (!response.ok) {
         setApiError(
-          data.msg || data.error_description || data.message || 'Something went wrong during signup.'
+          data.msg ||
+            data.error_description ||
+            data.message ||
+            'Something went wrong during signup.'
         );
         return;
       }

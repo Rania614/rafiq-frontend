@@ -6,7 +6,7 @@ const PROJECT_SCOPED_ROUTE =
 /**
  * Persists the currently active project ID into session storage.
  * This is used to maintain context when navigating within a specific project.
- * 
+ *
  * @param projectId - The ID of the active project.
  */
 export function setCurrentProjectId(projectId: string): void {
@@ -23,7 +23,7 @@ export function clearCurrentProjectId(): void {
 
 /**
  * Retrieves the currently active project ID from session storage.
- * 
+ *
  * @returns The active project ID or null if none is set or running on server.
  */
 export function getCurrentProjectId(): string | null {
@@ -33,7 +33,7 @@ export function getCurrentProjectId(): string | null {
 
 /**
  * Extracts the project ID from a given pathname string using regex matching.
- * 
+ *
  * @param pathname - The current URL pathname.
  * @returns The extracted project ID or null if the path does not match a project scope.
  */
@@ -43,7 +43,7 @@ export function getProjectIdFromPath(pathname: string): string | null {
 
 /**
  * Checks if the current URL pathname belongs to a project-scoped route.
- * 
+ *
  * @param pathname - The current URL pathname.
  * @returns True if the path is project-scoped, false otherwise.
  */
@@ -53,7 +53,7 @@ export function isProjectScopedPath(pathname: string): boolean {
 
 /**
  * Generates the URL path for the project edit page.
- * 
+ *
  * @param projectId - The ID of the target project.
  * @returns The relative URL path.
  */
@@ -63,7 +63,7 @@ export function getProjectEditHref(projectId: string): string {
 
 /**
  * Generates the URL path for the project members page.
- * 
+ *
  * @param projectId - The ID of the target project.
  * @returns The relative URL path.
  */
@@ -73,7 +73,7 @@ export function getProjectMembersHref(projectId: string): string {
 
 /**
  * Generates the URL path for the project epics page.
- * 
+ *
  * @param projectId - The ID of the target project.
  * @returns The relative URL path.
  */
@@ -83,7 +83,7 @@ export function getProjectEpicsHref(projectId: string): string {
 
 /**
  * Generates the URL path for the new epic creation page.
- * 
+ *
  * @param projectId - The ID of the target project.
  * @returns The relative URL path.
  */
@@ -93,7 +93,7 @@ export function getProjectEpicsNewHref(projectId: string): string {
 
 /**
  * Generates the URL path for the project tasks page.
- * 
+ *
  * @param projectId - The ID of the target project.
  * @returns The relative URL path.
  */

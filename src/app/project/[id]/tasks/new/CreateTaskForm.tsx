@@ -10,11 +10,7 @@ import ProjectBreadcrumb from '@/app/components/ProjectBreadcrumb';
 import { getAccessToken } from '@/utils/auth';
 import { getProjectTasksHref, setCurrentProjectId } from '@/utils/project';
 import { TASK_STATUSES, type TaskStatus } from '@/utils/tasks';
-import {
-  parseSupabaseRestError,
-  supabaseAuthHeaders,
-  supabaseRestUrl,
-} from '@/utils/supabase';
+import { parseSupabaseRestError, supabaseAuthHeaders, supabaseRestUrl } from '@/utils/supabase';
 
 interface ProjectMember {
   id: string;
@@ -186,7 +182,7 @@ export default function CreateTaskForm({ params }: { params: Promise<{ id: strin
     }
 
     // Build the request body mapping space status to underscore status
-    const body: Record<string, any> = {
+    const body: Record<string, string> = {
       project_id: projectId,
       title: values.title.trim(),
       status: values.status.replace(/ /g, '_'),
@@ -347,14 +343,10 @@ export default function CreateTaskForm({ params }: { params: Promise<{ id: strin
               disabled={isFetchingData}
               className="w-full appearance-none rounded-lg border border-[#CBD5E1] bg-[#E2ECFF]/30 px-4 py-3 text-sm text-[#0A192F] transition-colors focus:border-[#0046AD] focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <option value="">
-                {isFetchingData ? 'Loading epics...' : 'Select Epic Link'}
-              </option>
+              <option value="">{isFetchingData ? 'Loading epics...' : 'Select Epic Link'}</option>
               {epics.map((epic) => {
                 const displayTitle =
-                  epic.title.length > 100
-                    ? `${epic.title.slice(0, 100)}...`
-                    : epic.title;
+                  epic.title.length > 100 ? `${epic.title.slice(0, 100)}...` : epic.title;
                 return (
                   <option key={epic.id} value={epic.id}>
                     {epic.epic_id} {displayTitle}

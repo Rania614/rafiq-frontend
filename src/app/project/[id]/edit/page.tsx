@@ -9,11 +9,7 @@ import { CheckCircle2, FileCheck, Lightbulb, UserPlus, X } from 'lucide-react';
 import ProjectBreadcrumb from '@/app/components/ProjectBreadcrumb';
 import { getAccessToken } from '@/utils/auth';
 import { setCurrentProjectId } from '@/utils/project';
-import {
-  parseSupabaseRestError,
-  supabaseAuthHeaders,
-  supabaseRestUrl,
-} from '@/utils/supabase';
+import { parseSupabaseRestError, supabaseAuthHeaders, supabaseRestUrl } from '@/utils/supabase';
 
 const editProjectSchema = z.object({
   name: z
@@ -22,10 +18,7 @@ const editProjectSchema = z.object({
     .min(1, 'Project title is required')
     .min(3, 'Project name must be at least 3 characters.')
     .max(100, 'Project title must not exceed 100 characters'),
-  description: z
-    .string()
-    .max(500, 'Description must not exceed 500 characters')
-    .optional(),
+  description: z.string().max(500, 'Description must not exceed 500 characters').optional(),
 });
 
 type EditProjectFormValues = z.infer<typeof editProjectSchema>;

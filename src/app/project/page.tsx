@@ -19,11 +19,7 @@ import {
   getProjectEpicsHref,
   setCurrentProjectId,
 } from '@/utils/project';
-import {
-  parseSupabaseRestError,
-  supabaseAuthHeaders,
-  supabaseRestUrl,
-} from '@/utils/supabase';
+import { parseSupabaseRestError, supabaseAuthHeaders, supabaseRestUrl } from '@/utils/supabase';
 
 interface Project {
   id: string;
@@ -123,7 +119,9 @@ function AddProjectCard() {
       <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#E2ECFF] text-[#0046AD]">
         <Plus size={20} />
       </div>
-      <span className="text-xs font-bold tracking-widest text-[#4A5568] uppercase">Add Project</span>
+      <span className="text-xs font-bold tracking-widest text-[#4A5568] uppercase">
+        Add Project
+      </span>
     </Link>
   );
 }
@@ -219,7 +217,16 @@ export default function ProjectsPage() {
    */
   useEffect(() => {
     const mediaQuery = window.matchMedia(MOBILE_QUERY);
-    const updateIsMobile = () => setIsMobile(mediaQuery.matches);
+    const updateIsMobile = () => {
+      const matches = mediaQuery.matches;
+      setIsMobile((wasMobile) => {
+        if (matches !== wasMobile) {
+          setCurrentPage(1);
+          setProjects([]);
+        }
+        return matches;
+      });
+    };
 
     updateIsMobile();
     mediaQuery.addEventListener('change', updateIsMobile);
@@ -232,8 +239,7 @@ export default function ProjectsPage() {
    */
   useEffect(() => {
     if (isMobile) {
-      setCurrentPage(1);
-      setProjects([]);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- preserve existing projects fetch flow
       fetchProjects({ offset: 0, append: false });
       return;
     }
@@ -400,9 +406,7 @@ export default function ProjectsPage() {
 
                   return (
                     <span key={page} className="flex items-center gap-1">
-                      {showEllipsis && (
-                        <span className="px-1 text-xs text-[#4A5568]">...</span>
-                      )}
+                      {showEllipsis && <span className="px-1 text-xs text-[#4A5568]">...</span>}
                       <button
                         type="button"
                         onClick={() => handlePageChange(page)}

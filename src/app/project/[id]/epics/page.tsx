@@ -128,11 +128,7 @@ function EpicsLoadingState() {
 function EmptyEpicsIllustration() {
   return (
     <div className="relative mx-auto mb-8 flex h-36 w-36 items-center justify-center rounded-3xl border border-[#CBD5E1]/60 bg-[#E2ECFF]/40">
-      <Rocket
-        size={22}
-        className="absolute left-5 top-5 text-[#0046AD]/50"
-        strokeWidth={1.5}
-      />
+      <Rocket size={22} className="absolute left-5 top-5 text-[#0046AD]/50" strokeWidth={1.5} />
       <Compass size={40} className="text-[#0046AD]/70" strokeWidth={1.5} />
       <LayoutGrid
         size={20}
@@ -314,7 +310,9 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
       setLoading(true);
       setError(null);
       try {
-        const epicUrl = supabaseRestUrl(`/project_epics?project_id=eq.${projectId}&id=eq.${epicId}`);
+        const epicUrl = supabaseRestUrl(
+          `/project_epics?project_id=eq.${projectId}&id=eq.${epicId}`
+        );
         const membersUrl = supabaseRestUrl(`/get_project_members?project_id=eq.${projectId}`);
 
         const [epicRes, membersRes] = await Promise.all([
@@ -369,7 +367,10 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
     if (!isEditingAssignee) return;
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (assigneeDropdownRef.current && !assigneeDropdownRef.current.contains(event.target as Node)) {
+      if (
+        assigneeDropdownRef.current &&
+        !assigneeDropdownRef.current.contains(event.target as Node)
+      ) {
         setIsEditingAssignee(false);
       }
     };
@@ -401,13 +402,13 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
 
   const handleSaveField = async (
     field: 'title' | 'description' | 'assignee_id' | 'deadline',
-    value: any
+    value: string | null
   ) => {
     if (!epic) return;
 
     let hasChanged = false;
     if (field === 'title') {
-      hasChanged = value.trim() !== epic.title;
+      hasChanged = (value ?? '').trim() !== epic.title;
     } else if (field === 'description') {
       hasChanged = (value || null) !== (epic.description || null);
     } else if (field === 'assignee_id') {
@@ -427,7 +428,7 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
       return;
     }
 
-    if (field === 'title' && !value.trim()) {
+    if (field === 'title' && !(value ?? '').trim()) {
       setToast({ message: 'Title is required.', type: 'error' });
       setTempTitle(epic.title);
       setIsEditingTitle(false);
@@ -445,8 +446,8 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
 
     try {
       const url = supabaseRestUrl(`/epics?id=eq.${epicId}`);
-      const payload: Record<string, any> = {};
-      if (field === 'title') payload.title = value.trim();
+      const payload: Record<string, string | null> = {};
+      if (field === 'title') payload.title = (value ?? '').trim();
       if (field === 'description') payload.description = value ? value.trim() : null;
       if (field === 'assignee_id') payload.assignee_id = value || null;
       if (field === 'deadline') payload.deadline = value || null;
@@ -463,7 +464,7 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
 
       const updatedEpic = { ...epic };
       if (field === 'title') {
-        updatedEpic.title = value.trim();
+        updatedEpic.title = (value ?? '').trim();
       }
       if (field === 'description') {
         updatedEpic.description = value ? value.trim() : null;
@@ -700,9 +701,7 @@ function EpicDetailsModal({ epicId, projectId, onClose, onUpdate }: EpicDetailsM
                           <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#E2ECFF] text-[10px] font-bold text-[#0046AD]">
                             {getAvatarLetters(member.name)}
                           </div>
-                          <span className="truncate font-medium text-[#0A192F]">
-                            {member.name}
-                          </span>
+                          <span className="truncate font-medium text-[#0A192F]">{member.name}</span>
                         </button>
                       ))}
                     </div>
@@ -816,7 +815,7 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
 
   // Reference for the hidden 'sentinel' element at the bottom of the list for infinite scrolling
   const loadMoreRef = useRef<HTMLDivElement>(null);
-  
+
   // A ref to keep track of loading state synchronously inside event handlers & observers
   const isLoadingMoreRef = useRef(false);
 
@@ -864,8 +863,10 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
 
       try {
         // Construct the URL with required filter, limit, and offset parameters
-        const url = supabaseRestUrl(`/project_epics?project_id=eq.${id}&limit=${EPICS_PAGE_SIZE}&offset=${offset}`);
-        
+        const url = supabaseRestUrl(
+          `/project_epics?project_id=eq.${id}&limit=${EPICS_PAGE_SIZE}&offset=${offset}`
+        );
+
         const response = await fetch(url, {
           method: 'GET',
           headers: {
@@ -894,7 +895,7 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
 
         // If 'append' is true (mobile scroll), merge new data; otherwise, replace it (desktop pagination)
         setEpics((prev) => (append ? [...prev, ...data] : data));
-        
+
         // Determine page state: empty if total records is 0, success otherwise
         setPageState(total === 0 ? 'empty' : 'success');
       } catch {
@@ -913,7 +914,16 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
    */
   useEffect(() => {
     const mediaQuery = window.matchMedia(MOBILE_QUERY);
-    const updateIsMobile = () => setIsMobile(mediaQuery.matches);
+    const updateIsMobile = () => {
+      const matches = mediaQuery.matches;
+      setIsMobile((wasMobile) => {
+        if (matches !== wasMobile) {
+          setCurrentPage(1);
+          setEpics([]);
+        }
+        return matches;
+      });
+    };
 
     updateIsMobile();
     mediaQuery.addEventListener('change', updateIsMobile);
@@ -930,19 +940,19 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
       lastProjectIdRef.current = id;
       setCurrentPage(1);
       setEpics([]);
+
       fetchEpics({ offset: 0, append: false });
       return;
     }
 
     if (isMobile) {
-      // In mobile view, we always start from page 1 and append.
-      setCurrentPage(1);
-      setEpics([]);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- preserve existing epics fetch flow
       fetchEpics({ offset: 0, append: false });
       return;
     }
 
     // Desktop: fetch the exact slice of records for the active page
+
     fetchEpics({
       offset: (currentPage - 1) * EPICS_PAGE_SIZE,
       append: false,
@@ -1082,9 +1092,7 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
 
                   return (
                     <span key={page} className="flex items-center gap-1">
-                      {showEllipsis && (
-                        <span className="px-1 text-xs text-[#4A5568]">...</span>
-                      )}
+                      {showEllipsis && <span className="px-1 text-xs text-[#4A5568]">...</span>}
                       <button
                         type="button"
                         onClick={() => handlePageChange(page)}

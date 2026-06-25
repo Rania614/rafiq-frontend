@@ -7,11 +7,7 @@ import ProjectBreadcrumb from '@/app/components/ProjectBreadcrumb';
 import { getAvatarLetters } from '@/utils/avatar';
 import { getAccessToken } from '@/utils/auth';
 import { setCurrentProjectId } from '@/utils/project';
-import {
-  parseSupabaseRestError,
-  supabaseAuthHeaders,
-  supabaseRestUrl,
-} from '@/utils/supabase';
+import { parseSupabaseRestError, supabaseAuthHeaders, supabaseRestUrl } from '@/utils/supabase';
 
 interface ProjectMember {
   id: string;
@@ -44,9 +40,7 @@ function normalizeMember(raw: Record<string, unknown>): ProjectMember {
     | Record<string, string>
     | undefined;
 
-  const name = String(
-    raw.name ?? raw.full_name ?? metadata?.name ?? raw.user_name ?? 'Unknown'
-  );
+  const name = String(raw.name ?? raw.full_name ?? metadata?.name ?? raw.user_name ?? 'Unknown');
   const email = String(raw.email ?? '');
   const role = String(raw.role ?? 'member').toLowerCase();
 
@@ -93,7 +87,9 @@ function MembersTableSkeleton({ count = 4 }: { count?: number }) {
   return (
     <div className="overflow-hidden rounded-xl border border-[#CBD5E1] bg-white shadow-sm">
       <div className="hidden border-b border-[#CBD5E1]/60 px-6 py-3 sm:grid sm:grid-cols-[1fr_120px_48px] sm:gap-4">
-        <span className="text-[10px] font-bold tracking-wider text-[#4A5568] uppercase">Member</span>
+        <span className="text-[10px] font-bold tracking-wider text-[#4A5568] uppercase">
+          Member
+        </span>
         <span className="text-[10px] font-bold tracking-wider text-[#4A5568] uppercase">Role</span>
         <span className="text-right text-[10px] font-bold tracking-wider text-[#4A5568] uppercase">
           Actions
@@ -204,6 +200,8 @@ export default function ProjectMembersPage({ params }: { params: Promise<{ id: s
     }
 
     setCurrentProjectId(id);
+    // Data load intentionally triggered from effect; fetchMembers updates local UI state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- preserve existing members fetch flow
     fetchMembers();
   }, [id, router, fetchMembers]);
 
