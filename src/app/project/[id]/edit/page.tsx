@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, FileCheck, Lightbulb, UserPlus, X } from 'lucide-react';
+import { CheckCircle2, Settings2, UserPlus, X } from 'lucide-react';
 import ProjectBreadcrumb from '@/app/components/ProjectBreadcrumb';
 import { getAccessToken } from '@/utils/auth';
 import { setCurrentProjectId } from '@/utils/project';
@@ -22,6 +22,44 @@ const editProjectSchema = z.object({
 });
 
 type EditProjectFormValues = z.infer<typeof editProjectSchema>;
+
+const LABEL_CLASS = 'text-[11px] font-bold uppercase tracking-[0.6px] text-[#4F5F7B]';
+const LABEL_ERROR_CLASS = 'text-[11px] font-bold uppercase tracking-[0.6px] text-[#BA1A1A]';
+
+const FIELD_BASE_CLASS =
+  'w-full rounded-sm px-4 py-3.5 text-sm text-[#434654] placeholder:text-[#737685]/70 transition-colors focus:outline focus:outline-1';
+
+const FIELD_DEFAULT_CLASS = `${FIELD_BASE_CLASS} border-0 bg-[#E0E8FF] focus:outline-[#003D9B]`;
+const FIELD_ERROR_CLASS = `${FIELD_BASE_CLASS} border-0 bg-[#FFDBD6] text-[#93000A] focus:outline-[#BA1A1A]`;
+
+const SHADOW_SM = 'shadow-[0_1px_2px_0px_#0000000d]';
+
+const GRADIENT_BUTTON_BASE = `inline-flex items-center justify-center rounded-sm bg-gradient-to-br from-[#003D9B] to-[#0052CC] text-white ${SHADOW_SM}`;
+
+const PRIMARY_BUTTON_CLASS = `${GRADIENT_BUTTON_BASE} px-8 py-3 text-base font-semibold transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60 lg:min-w-[140px]`;
+
+const INVITE_BUTTON_CLASS = `${GRADIENT_BUTTON_BASE} gap-2 px-6 py-2.5 text-sm font-semibold`;
+
+const GHOST_BUTTON_CLASS =
+  'inline-flex items-center justify-center rounded-sm px-6 py-3 text-base font-bold text-[#4F5F7B] transition-colors hover:text-[#041B3C] lg:min-w-[120px]';
+
+const SUCCESS_TOAST_CLASS = `fixed top-20 right-4 left-4 z-50 mx-auto flex max-w-md items-center gap-3 rounded-sm border border-[#82F9BE]/40 bg-white px-4 py-3 ${SHADOW_SM} sm:right-6 sm:left-auto`;
+
+const ERROR_TEXT_CLASS = 'text-[11px] font-medium text-[#BA1A1A]';
+
+const PAGE_TITLE = 'edit project';
+
+const FORM_SUBTITLE = 'Define the scope and foundational details of your project.';
+
+const PRO_TIP_TEXT =
+  'You can invite project members and assign epics immediately after the initial creation process.';
+
+const SECTION_CLASS =
+  'mb-10 lg:mx-auto lg:max-w-[80%] lg:rounded-t-2xl lg:bg-white lg:shadow-[0_1px_2px_0px_#0000000d] xl:max-w-3/4 2xl:max-w-1/2';
+
+const getLabelClass = (hasError: boolean) => (hasError ? LABEL_ERROR_CLASS : LABEL_CLASS);
+
+const getFieldClass = (hasError: boolean) => (hasError ? FIELD_ERROR_CLASS : FIELD_DEFAULT_CLASS);
 
 interface Project {
   id: string;
@@ -160,18 +198,15 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   return (
     <>
       {successToast && (
-        <div
-          role="status"
-          className="fixed top-20 right-4 left-4 z-50 mx-auto flex max-w-md items-center gap-3 rounded-xl border border-[#70FFB5]/40 bg-white px-4 py-3 shadow-lg sm:right-6 sm:left-auto"
-        >
-          <CheckCircle2 size={18} className="shrink-0 text-[#0046AD]" />
-          <p className="flex-1 text-sm font-semibold text-[#0A192F]">
+        <div role="status" className={SUCCESS_TOAST_CLASS}>
+          <CheckCircle2 size={18} className="shrink-0 text-[#003D9B]" />
+          <p className="flex-1 text-sm font-semibold text-[#041B3C]">
             Project updated successfully
           </p>
           <button
             type="button"
             onClick={() => setSuccessToast(false)}
-            className="rounded-lg p-1 text-[#4A5568] hover:bg-[#F4F7FF]"
+            className="rounded-sm p-1 text-[#434654] transition-colors hover:bg-[#F1F3FF]"
             aria-label="Dismiss"
           >
             <X size={16} />
@@ -179,144 +214,125 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-4xl">
-        <ProjectBreadcrumb
-          items={[
-            { label: 'Projects', href: '/project' },
-            { label: breadcrumbTitle },
-            { label: 'Edit', active: true },
-          ]}
-        />
+      <ProjectBreadcrumb
+        items={[
+          { label: 'Projects', href: '/project' },
+          { label: breadcrumbTitle },
+          { label: 'Edit', active: true },
+        ]}
+      />
 
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-2xl font-bold tracking-tight text-[#0A192F] sm:text-3xl">
-            Edit Project
-          </h1>
-          <button
-            type="button"
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#CBD5E1] bg-white px-4 py-2.5 text-sm font-semibold text-[#0A192F] shadow-sm transition-colors hover:bg-[#F4F7FF] sm:w-auto"
-          >
-            <UserPlus size={16} className="text-[#0046AD]" />
-            Invite Member
-          </button>
-        </div>
+      <header className="mb-10 hidden items-center justify-between lg:flex">
+        <h1 className="flex-1 text-[36px] font-semibold capitalize leading-10 tracking-[-0.9px] text-[#041B3C]">
+          {PAGE_TITLE}
+        </h1>
+        <button type="button" className={INVITE_BUTTON_CLASS}>
+          <UserPlus size={18} />
+          Invite member
+        </button>
+      </header>
 
-        <div className="rounded-xl border border-[#CBD5E1] bg-white p-6 shadow-sm sm:p-8">
-          <div className="mb-6 flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#E2ECFF] text-[#0046AD]">
-              <FileCheck size={20} />
+      <section className={SECTION_CLASS}>
+        <div className="pb-12 lg:p-9 lg:pb-10">
+          <header className="mb-9 flex items-center gap-4 lg:mb-10">
+            <div className="hidden items-center justify-center rounded-sm bg-[#0052CC]/10 p-3 lg:flex">
+              <Settings2 size={22} className="text-[#0052CC]" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-[#0A192F] sm:text-xl">Edit Project</h2>
-              <p className="mt-1 text-sm text-[#4A5568]">
-                Define the scope and foundational details of your project.
-              </p>
+              <h2 className="text-2xl font-semibold capitalize leading-8 text-[#041B3C]">
+                {PAGE_TITLE}
+              </h2>
+              <p className="text-sm text-[#4F5F7B]">{FORM_SUBTITLE}</p>
             </div>
-          </div>
+          </header>
 
           {apiError && (
-            <div className="mb-5 rounded-lg bg-red-50 p-3 text-sm font-medium text-[#D31818]">
+            <div className="mb-6 rounded-sm bg-[#FFDBD6] p-3 text-sm font-medium text-[#BA1A1A]">
               {apiError}
             </div>
           )}
 
           {isFetching ? (
-            <div className="space-y-4 py-4">
-              <div className="h-10 animate-pulse rounded-lg bg-[#CBD5E1]/50" />
-              <div className="h-32 animate-pulse rounded-lg bg-[#CBD5E1]/50" />
+            <div className="flex flex-col gap-9 py-2">
+              <div className="h-[52px] animate-pulse rounded-sm bg-[#E8EDFF]" />
+              <div className="h-36 animate-pulse rounded-sm bg-[#E8EDFF]" />
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div className="h-12 w-28 animate-pulse rounded-sm bg-[#E8EDFF]" />
+                <div className="h-12 w-40 animate-pulse rounded-sm bg-[#E8EDFF]" />
+              </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              <div>
-                <label
-                  htmlFor="name"
-                  className="mb-1.5 block text-[10px] font-bold tracking-wider text-[#0A192F] uppercase"
-                >
-                  Project Title <span className="text-[#D31818]">*</span>
-                </label>
-                <input
-                  {...register('name')}
-                  id="name"
-                  type="text"
-                  placeholder="Project Title"
-                  className={`w-full rounded-lg border bg-[#E2ECFF]/40 px-4 py-3 text-sm text-[#0A192F] placeholder-[#4A5568]/50 transition-colors focus:outline-none ${
-                    errors.name
-                      ? 'border-[#D31818] focus:border-[#D31818]'
-                      : 'border-[#CBD5E1] focus:border-[#0046AD]'
-                  }`}
-                />
-                {errors.name && (
-                  <p className="mt-1.5 text-xs font-medium text-[#D31818]">{errors.name.message}</p>
-                )}
-              </div>
-
-              <div>
-                <label
-                  htmlFor="description"
-                  className="mb-1.5 block text-[10px] font-bold tracking-wider text-[#0A192F] uppercase"
-                >
-                  Description{' '}
-                  <span className="font-semibold normal-case tracking-normal text-[#4A5568]">
-                    Optional
-                  </span>
-                </label>
-                <textarea
-                  {...register('description')}
-                  id="description"
-                  rows={5}
-                  placeholder="Provide a high-level overview of the project's architectural objectives and key milestones..."
-                  className={`w-full resize-y rounded-lg border bg-[#E2ECFF]/40 px-4 py-3 text-sm text-[#0A192F] placeholder-[#4A5568]/50 transition-colors focus:outline-none ${
-                    errors.description
-                      ? 'border-[#D31818] focus:border-[#D31818]'
-                      : 'border-[#CBD5E1] focus:border-[#0046AD]'
-                  }`}
-                />
-                <div className="mt-1.5 flex items-start justify-between gap-2">
-                  {errors.description ? (
-                    <p className="text-xs font-medium text-[#D31818]">
-                      {errors.description.message}
-                    </p>
-                  ) : (
-                    <span />
-                  )}
-                  <span
-                    className={`shrink-0 text-[10px] font-medium ${
-                      descriptionValue.length > 500 ? 'text-[#D31818]' : 'text-[#D31818]/70'
-                    }`}
-                  >
-                    {descriptionValue.length} / 500 characters
-                  </span>
+            <form onSubmit={handleSubmit(onSubmit)}>
+              <div className="flex flex-col gap-9">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="name" className={getLabelClass(!!errors.name)}>
+                    project title <span className="text-[#BA1A1A]">*</span>
+                  </label>
+                  <input
+                    {...register('name')}
+                    id="name"
+                    type="text"
+                    placeholder="Enter project title"
+                    className={getFieldClass(!!errors.name)}
+                  />
+                  {errors.name && <p className={ERROR_TEXT_CLASS}>{errors.name.message}</p>}
                 </div>
-              </div>
 
-              <div className="flex flex-col-reverse items-stretch gap-3 border-t border-[#CBD5E1]/60 pt-6 sm:flex-row sm:items-center sm:justify-between">
-                <button
-                  type="button"
-                  onClick={() => router.push('/project')}
-                  className="inline-flex items-center justify-center rounded-lg border border-[#CBD5E1] bg-white px-6 py-3 text-sm font-semibold text-[#4A5568] transition-colors hover:bg-[#F4F7FF] hover:text-[#0A192F] sm:min-w-[120px]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="inline-flex items-center justify-center rounded-lg bg-[#0046AD] px-8 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#0056D2] disabled:bg-[#CBD5E1] sm:min-w-[120px]"
-                >
-                  {isLoading ? 'Saving...' : 'Save'}
-                </button>
+                <div className="flex flex-col gap-1.5">
+                  <label
+                    htmlFor="description"
+                    className={`flex items-center justify-between gap-3 ${getLabelClass(!!errors.description)}`}
+                  >
+                    <span>description</span>
+                    <span className="normal-case tracking-normal text-[#4F5F7B]/60">Optional</span>
+                  </label>
+                  <textarea
+                    {...register('description')}
+                    id="description"
+                    rows={5}
+                    placeholder="Provide a high-level overview of the project's architectural objectives and key milestones..."
+                    className={`resize-y ${getFieldClass(!!errors.description)}`}
+                  />
+                  <div className="flex items-start justify-between gap-2">
+                    {errors.description ? (
+                      <p className={ERROR_TEXT_CLASS}>{errors.description.message}</p>
+                    ) : (
+                      <span />
+                    )}
+                    <span
+                      className={`shrink-0 text-[11px] font-medium ${
+                        descriptionValue.length > 500 ? 'text-[#BA1A1A]' : 'text-[#4F5F7B]'
+                      }`}
+                    >
+                      {descriptionValue.length}/500 characters
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-stretch gap-4 lg:flex-row lg:items-end lg:justify-between">
+                  <button
+                    type="button"
+                    onClick={() => router.push('/project')}
+                    className={`${GHOST_BUTTON_CLASS} order-1 lg:order-0`}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={isLoading} className={PRIMARY_BUTTON_CLASS}>
+                    {isLoading ? 'Saving Changes...' : 'Save Changes'}
+                  </button>
+                </div>
               </div>
             </form>
           )}
-
-          <div className="mt-6 flex gap-3 rounded-lg border-l-4 border-[#0046AD] bg-[#F4F7FF] px-4 py-3">
-            <Lightbulb size={16} className="mt-0.5 shrink-0 text-[#0046AD]" />
-            <p className="text-xs leading-relaxed text-[#4A5568]">
-              <span className="font-bold text-[#0046AD]">Pro Tip:</span> You can invite project
-              members and assign epics immediately after the initial creation process.
-            </p>
-          </div>
         </div>
-      </div>
+
+        <div className="rounded-b-lg bg-[#F1F3FF] p-6 text-sm text-[#4F5F7B]">
+          <p className="flex flex-col gap-2 lg:block">
+            <span className="font-bold text-[#041B3C]">Pro Tip: </span>
+            <span>{PRO_TIP_TEXT}</span>
+          </p>
+        </div>
+      </section>
     </>
   );
 }
