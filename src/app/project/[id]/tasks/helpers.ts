@@ -92,3 +92,18 @@ export function groupTasksByStatus(tasks: Task[]): Record<TaskStatus, Task[]> {
 export function countTasks(tasksByStatus: Record<TaskStatus, Task[]>): number {
   return TASK_STATUSES.reduce((total, status) => total + tasksByStatus[status].length, 0);
 }
+
+export function mergeTasksById(existing: Task[], incoming: Task[]): Task[] {
+  if (incoming.length === 0) {
+    return existing;
+  }
+
+  const seenIds = new Set(existing.map((task) => task.id));
+  const newTasks = incoming.filter((task) => !seenIds.has(task.id));
+
+  if (newTasks.length === 0) {
+    return existing;
+  }
+
+  return [...existing, ...newTasks];
+}

@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { MoreVertical, Plus } from 'lucide-react';
+import type { RefObject } from 'react';
+import { Loader2, MoreVertical, Plus } from 'lucide-react';
 import { getAvatarLetters } from '@/utils/avatar';
 import { NEW_TASK_BUTTON_CLASS, SHADOW_SM, TABLE_CELL_CLASS, TABLE_HEAD_CLASS } from '../constants';
 import { formatListDueDate, getAvatarColor } from '../helpers';
@@ -12,6 +13,16 @@ interface TasksListProps {
   projectId: string;
   tasks: Task[];
   totalCount: number;
+  rangeStart: number;
+  rangeEnd: number;
+  isMobile: boolean;
+  currentPage: number;
+  totalPages: number;
+  pageNumbers: number[];
+  isLoadingMore: boolean;
+  hasMoreMobile: boolean;
+  loadMoreRef: RefObject<HTMLDivElement | null>;
+  onPageChange: (page: number) => void;
 }
 
 function TaskMobileCard({ task }: { task: Task }) {
@@ -56,8 +67,26 @@ function TaskMobileCard({ task }: { task: Task }) {
   );
 }
 
-export default function TasksList({ projectId, tasks, totalCount }: TasksListProps) {
+export default function TasksList({
+  projectId,
+  tasks,
+  totalCount,
+  rangeStart,
+  rangeEnd,
+  isMobile,
+  currentPage,
+  totalPages,
+  pageNumbers,
+  isLoadingMore,
+  hasMoreMobile,
+  loadMoreRef,
+  onPageChange,
+}: TasksListProps) {
   const addTaskHref = `/project/${projectId}/tasks/new`;
+
+  const showingText = isMobile
+    ? `Showing ${tasks.length} of ${totalCount} tasks`
+    : `Showing ${rangeStart + 1}–${rangeEnd + 1} of ${totalCount} tasks`;
 
   return (
     <div className="flex min-w-0 w-full max-w-full flex-col gap-4 lg:gap-0">
@@ -89,11 +118,25 @@ export default function TasksList({ projectId, tasks, totalCount }: TasksListPro
         ))}
       </div>
 
+      {isMobile && isLoadingMore && (
+        <div className="flex items-center justify-center gap-2 text-sm text-[#434654] lg:hidden">
+          <Loader2 size={18} className="animate-spin text-[#003D9B]" />
+          Loading more tasks...
+        </div>
+      )}
+
+      {isMobile && hasMoreMobile && <div ref={loadMoreRef} className="h-4 lg:hidden" aria-hidden />}
+
       <footer className="flex flex-col gap-4 bg-[#F1F3FF]/20 px-6 py-3 lg:flex-row lg:items-center lg:justify-between">
-        <p className="text-sm font-medium text-[#434654]">
-          Showing {tasks.length} of {totalCount} tasks
-        </p>
-        <TasksListPagination />
+        <p className="text-sm font-medium text-[#434654]">{showingText}</p>
+        {!isMobile && totalCount > 0 && (
+          <TasksListPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageNumbers={pageNumbers}
+            onPageChange={onPageChange}
+          />
+        )}
       </footer>
 
       <div className="flex justify-center lg:justify-end">

@@ -1,21 +1,28 @@
 'use client';
 
-import { use, useCallback, useEffect, useMemo, useState } from 'react';
+import { use, useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import ProjectBreadcrumb from '@/app/components/ProjectBreadcrumb';
 import { getAccessToken } from '@/utils/auth';
 import { setCurrentProjectId } from '@/utils/project';
+import {
+  getPageNumbers,
+  getTotalPages,
+  parseContentRange,
+  TASKS_PAGE_SIZE,
+} from '@/utils/pagination';
 import { supabaseAuthHeaders, supabaseRestUrl } from '@/utils/supabase';
-import { TASK_STATUSES } from '@/utils/tasks';
 import TaskEmptyState from './components/TaskEmptyState';
 import TaskErrorState from './components/TaskErrorState';
 import TaskLoadingState from './components/TaskLoadingState';
 import TasksBoard from './components/TasksBoard';
 import TasksHeader, { TasksHeaderSkeleton } from './components/TasksHeader';
 import TasksList from './components/TasksList';
-import { countTasks, groupTasksByStatus } from './helpers';
+import { mergeTasksById } from './helpers';
 import { BOARD_SCROLL_CONTAINER_CLASS } from './constants';
 import type { PageState, Task, ViewMode } from './types';
+
+const MOBILE_QUERY = '(max-width: 767px)';
 
 function parseViewMode(value: string | null): ViewMode {
   return value === 'list' ? 'list' : 'board';
@@ -28,12 +35,31 @@ export default function ProjectTasksPage({ params }: { params: Promise<{ id: str
   const searchParams = useSearchParams();
   const viewMode = parseViewMode(searchParams.get('view'));
 
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const isLoadingMoreRef = useRef(false);
+  const lastProjectIdRef = useRef(id);
+
   const [pageState, setPageState] = useState<PageState>('loading');
   const [projectName, setProjectName] = useState('');
-  const [tasksByStatus, setTasksByStatus] = useState(() => groupTasksByStatus([]));
+  const [listTasks, setListTasks] = useState<Task[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [rangeStart, setRangeStart] = useState(0);
+  const [rangeEnd, setRangeEnd] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const totalPages = getTotalPages(totalCount, TASKS_PAGE_SIZE);
+  const hasMoreMobile = listTasks.length < totalCount;
+  const pageNumbers = getPageNumbers(currentPage, totalPages);
 
   const handleViewModeChange = useCallback(
     (mode: ViewMode) => {
+      if (mode === 'list') {
+        setCurrentPage(1);
+        setListTasks([]);
+      }
+
       const nextSearchParams = new URLSearchParams(searchParams.toString());
       nextSearchParams.set('view', mode);
       router.push(`${pathname}?${nextSearchParams.toString()}`);
@@ -41,7 +67,64 @@ export default function ProjectTasksPage({ params }: { params: Promise<{ id: str
     [pathname, router, searchParams]
   );
 
-  const fetchTasks = useCallback(async () => {
+  const fetchListTasks = useCallback(
+    async ({ offset, append = false }: { offset: number; append?: boolean }) => {
+      const token = getAccessToken();
+      if (!token) {
+        router.replace('/login');
+        return;
+      }
+
+      if (append) {
+        if (isLoadingMoreRef.current) return;
+        isLoadingMoreRef.current = true;
+        setIsLoadingMore(true);
+      } else {
+        setPageState('loading');
+      }
+
+      try {
+        const url = supabaseRestUrl(
+          `/project_tasks?project_id=eq.${id}&limit=${TASKS_PAGE_SIZE}&offset=${offset}`
+        );
+
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            ...supabaseAuthHeaders(token),
+            Prefer: 'count=exact',
+          },
+        });
+
+        if (response.status === 401) {
+          router.replace('/login');
+          return;
+        }
+
+        if (!response.ok) {
+          setPageState('error');
+          return;
+        }
+
+        const { start, end, total } = parseContentRange(response.headers.get('content-range'));
+        const data: Task[] = await response.json();
+
+        setTotalCount(total);
+        setRangeStart(start);
+        setRangeEnd(end);
+        setListTasks((prev) => (append ? mergeTasksById(prev, data) : data));
+        setPageState(total === 0 ? 'empty' : 'success');
+      } catch {
+        setPageState('error');
+      } finally {
+        isLoadingMoreRef.current = false;
+        setIsLoadingMore(false);
+      }
+    },
+    [id, router]
+  );
+
+  const fetchBoardEmptyCheck = useCallback(async () => {
     const token = getAccessToken();
     if (!token) {
       router.replace('/login');
@@ -51,11 +134,14 @@ export default function ProjectTasksPage({ params }: { params: Promise<{ id: str
     setPageState('loading');
 
     try {
-      const url = supabaseRestUrl(`/project_tasks?project_id=eq.${id}`);
+      const url = supabaseRestUrl(`/project_tasks?project_id=eq.${id}&limit=0&offset=0`);
 
       const response = await fetch(url, {
         method: 'GET',
-        headers: supabaseAuthHeaders(token),
+        headers: {
+          ...supabaseAuthHeaders(token),
+          Prefer: 'count=exact',
+        },
       });
 
       if (response.status === 401) {
@@ -68,11 +154,8 @@ export default function ProjectTasksPage({ params }: { params: Promise<{ id: str
         return;
       }
 
-      const data: Task[] = await response.json();
-      const groupedTasks = groupTasksByStatus(data);
-
-      setTasksByStatus(groupedTasks);
-      setPageState(countTasks(groupedTasks) === 0 ? 'empty' : 'success');
+      const { total } = parseContentRange(response.headers.get('content-range'));
+      setPageState(total === 0 ? 'empty' : 'success');
     } catch {
       setPageState('error');
     }
@@ -104,17 +187,98 @@ export default function ProjectTasksPage({ params }: { params: Promise<{ id: str
     };
 
     fetchProjectName();
-    // Data load intentionally triggered from effect; fetchTasks updates local UI state.
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- preserve existing tasks fetch flow
-    fetchTasks();
-  }, [id, router, fetchTasks]);
+  }, [id, router]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(MOBILE_QUERY);
+    const updateIsMobile = () => {
+      const matches = mediaQuery.matches;
+      setIsMobile((wasMobile) => {
+        if (matches !== wasMobile) {
+          setCurrentPage(1);
+          setListTasks([]);
+        }
+        return matches;
+      });
+    };
+
+    updateIsMobile();
+    mediaQuery.addEventListener('change', updateIsMobile);
+    return () => mediaQuery.removeEventListener('change', updateIsMobile);
+  }, []);
+
+  useEffect(() => {
+    if (viewMode === 'board') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- board empty check on view mount
+      fetchBoardEmptyCheck();
+      return;
+    }
+
+    if (lastProjectIdRef.current !== id) {
+      lastProjectIdRef.current = id;
+      setCurrentPage(1);
+      setListTasks([]);
+      fetchListTasks({ offset: 0, append: false });
+      return;
+    }
+
+    if (isMobile) {
+      fetchListTasks({ offset: 0, append: false });
+      return;
+    }
+
+    fetchListTasks({
+      offset: (currentPage - 1) * TASKS_PAGE_SIZE,
+      append: false,
+    });
+  }, [viewMode, currentPage, isMobile, id, fetchListTasks, fetchBoardEmptyCheck]);
+
+  useEffect(() => {
+    if (viewMode !== 'list' || !isMobile || pageState !== 'success' || !hasMoreMobile) return;
+
+    const sentinel = loadMoreRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !isLoadingMoreRef.current) {
+          fetchListTasks({ offset: listTasks.length, append: true });
+        }
+      },
+      { rootMargin: '120px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [viewMode, isMobile, pageState, hasMoreMobile, listTasks.length, fetchListTasks]);
+
+  const handlePageChange = useCallback(
+    (page: number) => {
+      if (page < 1 || page > totalPages || page === currentPage) return;
+      setCurrentPage(page);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    [currentPage, totalPages]
+  );
+
+  const handleRetry = useCallback(() => {
+    if (viewMode === 'board') {
+      fetchBoardEmptyCheck();
+      return;
+    }
+
+    if (isMobile) {
+      fetchListTasks({ offset: 0, append: false });
+      return;
+    }
+
+    fetchListTasks({
+      offset: (currentPage - 1) * TASKS_PAGE_SIZE,
+      append: false,
+    });
+  }, [viewMode, isMobile, currentPage, fetchBoardEmptyCheck, fetchListTasks]);
 
   const breadcrumbProjectName = (projectName || 'Project').toUpperCase();
-
-  const allTasks = useMemo(
-    () => TASK_STATUSES.flatMap((status) => tasksByStatus[status]),
-    [tasksByStatus]
-  );
 
   const showListContent = pageState === 'success' && viewMode === 'list';
   const showBoardContent = pageState === 'success' && viewMode === 'board';
@@ -143,17 +307,31 @@ export default function ProjectTasksPage({ params }: { params: Promise<{ id: str
             onViewModeChange={handleViewModeChange}
           />
 
-          {pageState === 'error' && <TaskErrorState onRetry={fetchTasks} />}
+          {pageState === 'error' && <TaskErrorState onRetry={handleRetry} />}
 
           {pageState === 'empty' && <TaskEmptyState projectId={id} />}
 
           {showListContent && (
-            <TasksList projectId={id} tasks={allTasks} totalCount={allTasks.length} />
+            <TasksList
+              projectId={id}
+              tasks={listTasks}
+              totalCount={totalCount}
+              rangeStart={rangeStart}
+              rangeEnd={rangeEnd}
+              isMobile={isMobile}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              pageNumbers={pageNumbers}
+              isLoadingMore={isLoadingMore}
+              hasMoreMobile={hasMoreMobile}
+              loadMoreRef={loadMoreRef}
+              onPageChange={handlePageChange}
+            />
           )}
 
           {showBoardContent && (
             <div className={BOARD_SCROLL_CONTAINER_CLASS}>
-              <TasksBoard projectId={id} tasksByStatus={tasksByStatus} />
+              <TasksBoard projectId={id} />
             </div>
           )}
         </>

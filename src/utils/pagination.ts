@@ -9,6 +9,16 @@ export const PROJECTS_PAGE_SIZE = 10;
 export const EPICS_PAGE_SIZE = 10;
 
 /**
+ * Number of items displayed per page in the project tasks list.
+ */
+export const TASKS_PAGE_SIZE = 10;
+
+/**
+ * Number of items loaded per request for each board column.
+ */
+export const BOARD_COLUMN_PAGE_SIZE = 10;
+
+/**
  * Represents the parsed pagination range from the Content-Range header.
  */
 export interface ContentRange {
