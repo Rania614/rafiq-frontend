@@ -1,4 +1,5 @@
 import { AlertTriangle, Calendar } from 'lucide-react';
+import { useDraggable } from '@dnd-kit/core';
 import { getAvatarLetters } from '@/utils/avatar';
 import { BOARD_SHADOW } from '../constants';
 import { getAvatarColor, getBoardDueLabel, getDueDateStatus } from '../helpers';
@@ -9,13 +10,30 @@ interface TaskCardProps {
 }
 
 export default function TaskCard({ task }: TaskCardProps) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: task.id,
+    data: { status: task.status },
+  });
+
+  const style = transform
+    ? {
+        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+      }
+    : undefined;
+
   const { isDueToday, isDelayed } = getDueDateStatus(task.deadline);
   const dueLabel = getBoardDueLabel(task);
   const assigneeName = task.assignee?.name ?? '';
 
   return (
     <div
-      className={`flex flex-col gap-4 rounded-lg border p-4 ${BOARD_SHADOW} ${
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      className={`flex flex-col gap-4 rounded-lg border p-4 cursor-grab active:cursor-grabbing select-none transition-shadow duration-150 ${
+        isDragging ? 'opacity-40 border-[#003D9B] border-dashed shadow-lg z-50' : BOARD_SHADOW
+      } ${
         isDelayed && task.deadline
           ? 'border-[#BA1A1A]/10 bg-[#FFDBD6]/20'
           : 'border-[#C3C6D6]/10 bg-white'

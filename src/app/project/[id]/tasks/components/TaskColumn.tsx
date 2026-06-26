@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Loader2, Plus } from 'lucide-react';
+import { useDroppable } from '@dnd-kit/core';
 import { getProjectTasksNewHref } from '@/utils/project';
 import type { TaskStatus } from '@/utils/tasks';
 import { STATUS_COUNT_BADGE, STATUS_DOT_COLORS } from '../constants';
@@ -12,16 +13,25 @@ import TaskCard from './TaskCard';
 interface TaskColumnProps {
   projectId: string;
   status: TaskStatus;
+  refreshKey?: number;
 }
 
-export default function TaskColumn({ projectId, status }: TaskColumnProps) {
+export default function TaskColumn({ projectId, status, refreshKey = 0 }: TaskColumnProps) {
   const { tasks, totalCount, isLoading, isLoadingMore, hasMore, error, loadMoreRef, retry } =
-    useBoardColumnTasks(projectId, status);
+    useBoardColumnTasks(projectId, status, refreshKey);
+  const { isOver, setNodeRef } = useDroppable({
+    id: status,
+  });
 
   const countBadgeClass = STATUS_COUNT_BADGE[status] ?? 'bg-[#E8EDFF] text-[#434654]';
 
   return (
-    <div className="flex w-64 shrink-0 flex-col gap-4">
+    <div
+      ref={setNodeRef}
+      className={`flex w-64 shrink-0 flex-col gap-4 rounded-lg p-2 transition-colors ${
+        isOver ? 'bg-[#F1F3FF]/60 outline outline-2 outline-dashed outline-[#003D9B]/20' : ''
+      }`}
+    >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className={`size-2 rounded-full ${STATUS_DOT_COLORS[status]}`} />

@@ -3,6 +3,7 @@
 import { use, useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import ProjectBreadcrumb from '@/app/components/ProjectBreadcrumb';
+import { AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { getAccessToken } from '@/utils/auth';
 import { setCurrentProjectId } from '@/utils/project';
 import {
@@ -12,6 +13,7 @@ import {
   TASKS_PAGE_SIZE,
 } from '@/utils/pagination';
 import { supabaseAuthHeaders, supabaseRestUrl } from '@/utils/supabase';
+import type { TaskStatus } from '@/utils/tasks';
 import TaskEmptyState from './components/TaskEmptyState';
 import TaskErrorState from './components/TaskErrorState';
 import TaskLoadingState from './components/TaskLoadingState';
@@ -48,10 +50,54 @@ export default function ProjectTasksPage({ params }: { params: Promise<{ id: str
   const [rangeEnd, setRangeEnd] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [boardRefreshKey, setBoardRefreshKey] = useState(0);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const totalPages = getTotalPages(totalCount, TASKS_PAGE_SIZE);
   const hasMoreMobile = listTasks.length < totalCount;
   const pageNumbers = getPageNumbers(currentPage, totalPages);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+  }, []);
+
+  const handleTaskStatusChange = useCallback(
+    async (taskId: string, _currentStatus: TaskStatus, newStatus: TaskStatus) => {
+      const token = getAccessToken();
+      if (!token) {
+        router.replace('/login');
+        return;
+      }
+
+      try {
+        const url = supabaseRestUrl(`/tasks?id=eq.${taskId}`);
+        const response = await fetch(url, {
+          method: 'PATCH',
+          headers: {
+            ...supabaseAuthHeaders(token),
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ status: newStatus }),
+        });
+
+        if (!response.ok) {
+          throw new Error('PATCH failed');
+        }
+
+        setBoardRefreshKey((key) => key + 1);
+        showToast('Task status updated', 'success');
+      } catch {
+        showToast('Failed to update task status', 'error');
+      }
+    },
+    [router, showToast]
+  );
 
   const handleViewModeChange = useCallback(
     (mode: ViewMode) => {
@@ -285,6 +331,30 @@ export default function ProjectTasksPage({ params }: { params: Promise<{ id: str
 
   return (
     <section className="flex min-w-0 w-full max-w-full flex-col gap-6">
+      {toast && (
+        <div
+          role="status"
+          className={`fixed top-20 right-4 left-4 z-[100] mx-auto flex max-w-md items-center gap-3 rounded-sm border bg-white px-4 py-3 shadow-[0_1px_2px_0px_#0000000d] sm:right-6 sm:left-auto ${
+            toast.type === 'success' ? 'border-[#82F9BE]/40' : 'border-[#FFDBD6]'
+          }`}
+        >
+          {toast.type === 'success' ? (
+            <CheckCircle2 size={18} className="shrink-0 text-[#003D9B]" />
+          ) : (
+            <AlertCircle size={18} className="shrink-0 text-[#BA1A1A]" />
+          )}
+          <p className="flex-1 text-sm font-semibold text-[#041B3C]">{toast.message}</p>
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            className="rounded-sm p-1 text-[#434654] transition-colors hover:bg-[#F1F3FF]"
+            aria-label="Dismiss"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       <ProjectBreadcrumb
         items={[
           { label: 'Projects', href: '/project' },
@@ -331,7 +401,11 @@ export default function ProjectTasksPage({ params }: { params: Promise<{ id: str
 
           {showBoardContent && (
             <div className={BOARD_SCROLL_CONTAINER_CLASS}>
-              <TasksBoard projectId={id} />
+              <TasksBoard
+                projectId={id}
+                refreshKey={boardRefreshKey}
+                onTaskStatusChange={handleTaskStatusChange}
+              />
             </div>
           )}
         </>

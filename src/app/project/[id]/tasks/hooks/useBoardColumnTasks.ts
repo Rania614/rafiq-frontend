@@ -9,12 +9,15 @@ import type { TaskStatus } from '@/utils/tasks';
 import { mergeTasksById } from '../helpers';
 import type { Task } from '../types';
 
-export function useBoardColumnTasks(projectId: string, status: TaskStatus) {
+export function useBoardColumnTasks(projectId: string, status: TaskStatus, refreshKey = 0) {
   const router = useRouter();
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const isLoadingMoreRef = useRef(false);
 
   const [tasks, setTasks] = useState<Task[]>([]);
+  const tasksRef = useRef(tasks);
+  tasksRef.current = tasks;
+
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -83,7 +86,7 @@ export function useBoardColumnTasks(projectId: string, status: TaskStatus) {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- column initial fetch
     fetchColumnTasks({ offset: 0, append: false });
-  }, [projectId, status, fetchColumnTasks]);
+  }, [projectId, status, refreshKey, fetchColumnTasks]);
 
   useEffect(() => {
     if (isLoading || !hasMore) return;
@@ -108,6 +111,27 @@ export function useBoardColumnTasks(projectId: string, status: TaskStatus) {
     fetchColumnTasks({ offset: 0, append: false });
   }, [fetchColumnTasks]);
 
+  const hasTask = useCallback((taskId: string) => {
+    return tasksRef.current.some((task) => task.id === taskId);
+  }, []);
+
+  const removeTask = useCallback((taskId: string): Task | null => {
+    const task = tasksRef.current.find((item) => item.id === taskId) ?? null;
+    if (!task) return null;
+
+    setTasks((prev) => prev.filter((item) => item.id !== taskId));
+    setTotalCount((count) => Math.max(0, count - 1));
+    return task;
+  }, []);
+
+  const addTask = useCallback((task: Task) => {
+    setTasks((prev) => {
+      if (prev.some((item) => item.id === task.id)) return prev;
+      return [...prev, task];
+    });
+    setTotalCount((count) => count + 1);
+  }, []);
+
   return {
     tasks,
     totalCount,
@@ -117,5 +141,8 @@ export function useBoardColumnTasks(projectId: string, status: TaskStatus) {
     error,
     loadMoreRef,
     retry,
+    hasTask,
+    removeTask,
+    addTask,
   };
 }
