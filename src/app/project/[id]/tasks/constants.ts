@@ -1,6 +1,10 @@
 import { TASK_STATUSES, type TaskStatus } from '@/utils/tasks';
 import type { Task } from './types';
 
+export const BOARD_SCROLL_CONTAINER_CLASS = 'min-w-0 w-full max-w-full overflow-x-auto pb-4';
+
+export const BOARD_COLUMNS_CLASS = 'inline-flex gap-4 lg:gap-6';
+
 export const SHADOW_SM = 'shadow-[0_1px_2px_0px_#0000000d]';
 export const BOARD_SHADOW = 'shadow-[0_2px_8px_0_#00000005]';
 
@@ -21,6 +25,9 @@ export const TABLE_HEAD_CLASS =
   'px-6 py-4 text-left text-[11px] font-bold uppercase tracking-[0.6px] text-[#434654]';
 
 export const TABLE_CELL_CLASS = 'px-6 py-4.5 text-sm leading-4';
+
+export const PAGINATION_BUTTON_CLASS =
+  'flex size-9 items-center justify-center rounded-xs border border-[#C3C6D6] text-sm font-bold text-[#434654] transition-colors disabled:cursor-not-allowed disabled:opacity-40';
 
 export const STATUS_DOT_COLORS: Record<TaskStatus, string> = {
   TO_DO: 'bg-[#6B7280]',
@@ -48,10 +55,12 @@ export const STATUS_BADGE_STYLES: Record<TaskStatus, string> = {
   DONE: 'bg-[#82F9BE] text-[#005235]',
 };
 
-export const EMPTY_TASKS_BY_STATUS = TASK_STATUSES.reduce(
-  (accumulator, status) => {
-    accumulator[status] = [];
-    return accumulator;
-  },
-  {} as Record<TaskStatus, Task[]>
-);
+export function createEmptyTasksByStatus(): Record<TaskStatus, Task[]> {
+  return TASK_STATUSES.reduce(
+    (accumulator, status) => {
+      accumulator[status] = [];
+      return accumulator;
+    },
+    {} as Record<TaskStatus, Task[]>
+  );
+}

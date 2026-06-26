@@ -1,23 +1,27 @@
+'use client';
+
 import Link from 'next/link';
-import { Plus } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { getProjectTasksNewHref } from '@/utils/project';
 import type { TaskStatus } from '@/utils/tasks';
 import { STATUS_COUNT_BADGE, STATUS_DOT_COLORS } from '../constants';
 import { formatStatusLabel } from '../helpers';
-import type { Task } from '../types';
+import { useBoardColumnTasks } from '../hooks/useBoardColumnTasks';
 import TaskCard from './TaskCard';
 
 interface TaskColumnProps {
   projectId: string;
   status: TaskStatus;
-  tasks: Task[];
 }
 
-export default function TaskColumn({ projectId, status, tasks }: TaskColumnProps) {
+export default function TaskColumn({ projectId, status }: TaskColumnProps) {
+  const { tasks, totalCount, isLoading, isLoadingMore, hasMore, error, loadMoreRef, retry } =
+    useBoardColumnTasks(projectId, status);
+
   const countBadgeClass = STATUS_COUNT_BADGE[status] ?? 'bg-[#E8EDFF] text-[#434654]';
 
   return (
-    <div className="flex min-w-64 flex-col gap-4">
+    <div className="flex w-64 shrink-0 flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className={`size-2 rounded-full ${STATUS_DOT_COLORS[status]}`} />
@@ -27,7 +31,7 @@ export default function TaskColumn({ projectId, status, tasks }: TaskColumnProps
           <span
             className={`flex size-5 items-center justify-center rounded-sm px-1.5 text-[10px] font-bold ${countBadgeClass}`}
           >
-            {tasks.length}
+            {isLoading ? '…' : totalCount}
           </span>
         </div>
         <Link
@@ -47,11 +51,49 @@ export default function TaskColumn({ projectId, status, tasks }: TaskColumnProps
         Add New Task
       </Link>
 
-      <div className="flex flex-col gap-4">
-        {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} />
-        ))}
-      </div>
+      {error && (
+        <div className="flex flex-col items-center gap-2 rounded-sm bg-[#FFDBD6]/30 p-3 text-center">
+          <p className="text-xs text-[#BA1A1A]">Failed to load tasks</p>
+          <button
+            type="button"
+            onClick={retry}
+            className="text-xs font-semibold text-[#003D9B] hover:underline"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="flex flex-col gap-4">
+          {Array.from({ length: 2 }).map((_, index) => (
+            <div
+              key={index}
+              className="animate-pulse rounded-lg bg-white p-4 shadow-[0_2px_8px_0_#00000005]"
+            >
+              <div className="mb-2 h-4 w-3/4 rounded-sm bg-[#E8EDFF]" />
+              <div className="h-3 w-1/2 rounded-sm bg-[#E8EDFF]" />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {tasks.map((task) => (
+            <TaskCard key={task.id} task={task} />
+          ))}
+
+          {isLoadingMore && (
+            <div className="flex items-center justify-center gap-2 py-2 text-xs text-[#434654]">
+              <Loader2 size={14} className="animate-spin text-[#003D9B]" />
+              Loading more...
+            </div>
+          )}
+
+          {hasMore && !isLoadingMore && (
+            <div ref={loadMoreRef} className="h-4 w-full" aria-hidden />
+          )}
+        </div>
+      )}
     </div>
   );
 }
