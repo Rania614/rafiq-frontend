@@ -249,7 +249,7 @@ function EpicSearchInput({
       <Search className="pointer-events-none absolute left-3 size-4 text-[#737685]" />
       <input
         type="search"
-        placeholder="search epic..."
+        placeholder="Search epics..."
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="w-full rounded-sm border-0 bg-[#E0E8FF] py-3 pr-4 pl-10 text-sm text-[#434654] placeholder:text-[#737685]/70 transition-colors focus:outline focus:outline-1 focus:outline-[#003D9B]"
@@ -273,7 +273,7 @@ function SearchEmptyState() {
   );
 }
 
-function EpicsErrorState({ onRetry }: { onRetry: () => void }) {
+function EpicsErrorState({ onRetry, hasSearch }: { onRetry: () => void; hasSearch: boolean }) {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 py-16 text-center lg:min-h-[70vh]">
       <div className="flex flex-col items-center gap-11 sm:max-w-md">
@@ -282,7 +282,7 @@ function EpicsErrorState({ onRetry }: { onRetry: () => void }) {
         </div>
         <div className="flex flex-col items-center gap-4">
           <h2 className="text-[28px] font-semibold tracking-[-0.75px] text-[#041B3C]">
-            Something went wrong
+            {hasSearch ? 'Failed to search epics' : 'Failed to load epics'}
           </h2>
           <p className="text-sm leading-6 text-[#434654]">
             We&apos;re having trouble retrieving epics right now. Please try again in a moment.
@@ -960,6 +960,7 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
   // State to manage the active/selected epic for the details popup
   const [selectedEpicId, setSelectedEpicId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
 
   // State management for pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -973,24 +974,42 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
   const totalPages = getTotalPages(totalCount, EPICS_PAGE_SIZE);
   const hasMoreMobile = epics.length < totalCount;
 
-  const normalizedSearch = searchTerm.trim().toLowerCase();
-  const filteredEpics = normalizedSearch
-    ? epics.filter(
-        (epic) =>
-          epic.title.toLowerCase().includes(normalizedSearch) ||
-          epic.epic_id.toLowerCase().includes(normalizedSearch)
-      )
-    : epics;
+  // Render the fetched epics directly (client-side filtering is replaced by server-side search)
+  const filteredEpics = epics;
 
-  // Track the last project ID we fetched, to detect when it changes
-  const lastProjectIdRef = useRef(id);
+  // Keep track of what we last fetched to avoid duplicate requests or race conditions
+  const lastFetchedRef = useRef({
+    id: '',
+    page: -1,
+    search: '',
+    isMobile: false,
+  });
+
+  // Setup search debouncing effect
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 400);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
 
   /**
    * Main function to fetch project epics from the Supabase API.
    * Supports both regular paging (replacing records) and infinite scrolling (appending records).
    */
   const fetchEpics = useCallback(
-    async ({ offset, append = false }: { offset: number; append?: boolean }) => {
+    async ({
+      offset,
+      append = false,
+      search = '',
+    }: {
+      offset: number;
+      append?: boolean;
+      search?: string;
+    }) => {
       const token = getAccessToken();
       if (!token) {
         router.replace('/login');
@@ -1005,10 +1024,12 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
       }
 
       try {
-        // Construct the URL with required filter, limit, and offset parameters
-        const url = supabaseRestUrl(
-          `/project_epics?project_id=eq.${id}&limit=${EPICS_PAGE_SIZE}&offset=${offset}`
-        );
+        // Construct the URL with required filter, limit, offset, and search term parameters
+        let urlPath = `/project_epics?project_id=eq.${id}&limit=${EPICS_PAGE_SIZE}&offset=${offset}`;
+        if (search.trim()) {
+          urlPath += `&title=ilike.%25${encodeURIComponent(search.trim())}%25`;
+        }
+        const url = supabaseRestUrl(urlPath);
 
         const response = await fetch(url, {
           method: 'GET',
@@ -1039,8 +1060,16 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
         // If 'append' is true (mobile scroll), merge new data; otherwise, replace it (desktop pagination)
         setEpics((prev) => (append ? [...prev, ...data] : data));
 
-        // Determine page state: empty if total records is 0, success otherwise
-        setPageState(total === 0 ? 'empty' : 'success');
+        // Determine page state: empty if total records is 0 AND search is empty, success otherwise
+        if (total === 0) {
+          if (search.trim()) {
+            setPageState('success');
+          } else {
+            setPageState('empty');
+          }
+        } else {
+          setPageState('success');
+        }
       } catch {
         setPageState('error');
       } finally {
@@ -1075,32 +1104,54 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
 
   /**
    * Fetch logic handler. Runs on component mount, or when current page, screen size,
-   * or fetch callback changes (e.g. project ID changes).
+   * search query, or fetch callback changes (e.g. project ID changes).
    */
   useEffect(() => {
-    // If project ID has changed, reset the pagination to page 1 and clear the list
-    if (lastProjectIdRef.current !== id) {
-      lastProjectIdRef.current = id;
-      setCurrentPage(1);
-      setEpics([]);
+    let targetPage = currentPage;
+    let targetSearch = debouncedSearchTerm;
 
-      fetchEpics({ offset: 0, append: false });
+    if (id !== lastFetchedRef.current.id) {
+      // If project ID changed, reset search term and page
+      lastFetchedRef.current.id = id;
+      setCurrentPage(1);
+      setSearchTerm('');
+      setDebouncedSearchTerm('');
+      targetPage = 1;
+      targetSearch = '';
+    } else if (debouncedSearchTerm !== lastFetchedRef.current.search) {
+      // If search query changed, reset page to 1
+      setCurrentPage(1);
+      targetPage = 1;
+    }
+
+    // Check if target inputs match what we last successfully initiated a fetch for
+    if (
+      id === lastFetchedRef.current.id &&
+      targetPage === lastFetchedRef.current.page &&
+      targetSearch === lastFetchedRef.current.search &&
+      isMobile === lastFetchedRef.current.isMobile
+    ) {
       return;
     }
+
+    // Record the inputs we are about to fetch
+    lastFetchedRef.current = {
+      id,
+      page: targetPage,
+      search: targetSearch,
+      isMobile,
+    };
 
     if (isMobile) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- preserve existing epics fetch flow
-      fetchEpics({ offset: 0, append: false });
-      return;
+      fetchEpics({ offset: 0, append: false, search: targetSearch });
+    } else {
+      fetchEpics({
+        offset: (targetPage - 1) * EPICS_PAGE_SIZE,
+        append: false,
+        search: targetSearch,
+      });
     }
-
-    // Desktop: fetch the exact slice of records for the active page
-
-    fetchEpics({
-      offset: (currentPage - 1) * EPICS_PAGE_SIZE,
-      append: false,
-    });
-  }, [currentPage, isMobile, id, fetchEpics]);
+  }, [id, currentPage, debouncedSearchTerm, isMobile, fetchEpics]);
 
   /**
    * Setup an IntersectionObserver at the bottom of the list for mobile screens.
@@ -1116,7 +1167,7 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
       (entries) => {
         // If the bottom sentinel is visible and we're not already loading
         if (entries[0]?.isIntersecting && !isLoadingMoreRef.current) {
-          fetchEpics({ offset: epics.length, append: true });
+          fetchEpics({ offset: epics.length, append: true, search: debouncedSearchTerm });
         }
       },
       { rootMargin: '120px' } // Load a bit early before the user reaches the absolute bottom
@@ -1124,7 +1175,7 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [isMobile, pageState, hasMoreMobile, epics.length, fetchEpics]);
+  }, [isMobile, pageState, hasMoreMobile, epics.length, fetchEpics, debouncedSearchTerm]);
 
   // Handler for page clicks in Desktop mode
   const handlePageChange = (page: number) => {
@@ -1137,26 +1188,25 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
   const pageNumbers = getPageNumbers(currentPage, totalPages);
 
   // Format the helper text showing the pagination boundaries
-  const showingText = normalizedSearch
-    ? `Showing ${filteredEpics.length} of ${totalCount} active epics`
-    : isMobile
-      ? `Showing ${epics.length} of ${totalCount} active epics`
-      : `Showing ${rangeStart + 1}-${rangeEnd + 1} of ${totalCount} active epics`;
+  const showingText = isMobile
+    ? `Showing ${epics.length} of ${totalCount} active epics`
+    : `Showing ${Math.min(rangeStart + 1, totalCount)}-${Math.min(rangeEnd + 1, totalCount)} of ${totalCount} active epics`;
 
   const handleRetry = () => {
     if (isMobile) {
-      fetchEpics({ offset: 0, append: false });
+      fetchEpics({ offset: 0, append: false, search: debouncedSearchTerm });
       return;
     }
 
     fetchEpics({
       offset: (currentPage - 1) * EPICS_PAGE_SIZE,
       append: false,
+      search: debouncedSearchTerm,
     });
   };
 
-  const showEpicsGrid = pageState === 'success' && (!normalizedSearch || filteredEpics.length > 0);
-  const showSearchEmpty = pageState === 'success' && normalizedSearch && filteredEpics.length === 0;
+  const showEpicsGrid = pageState === 'success' && epics.length > 0;
+  const showSearchEmpty = pageState === 'success' && debouncedSearchTerm.trim() !== '' && epics.length === 0;
 
   return (
     <section className="flex min-h-screen flex-col">
@@ -1199,7 +1249,12 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
             </header>
           )}
 
-          {pageState === 'error' && <EpicsErrorState onRetry={handleRetry} />}
+          {pageState === 'error' && (
+            <EpicsErrorState
+              onRetry={handleRetry}
+              hasSearch={debouncedSearchTerm.trim() !== ''}
+            />
+          )}
 
           {pageState === 'empty' && <EmptyEpicsState projectId={id} />}
 
@@ -1220,13 +1275,13 @@ export default function ProjectEpicsPage({ params }: { params: Promise<{ id: str
                 </div>
               )}
 
-              {isMobile && hasMoreMobile && !normalizedSearch && (
+              {isMobile && hasMoreMobile && (
                 <div ref={loadMoreRef} className="h-4" aria-hidden />
               )}
 
               <footer className="hidden flex-col items-center justify-center gap-6 lg:flex lg:flex-row lg:justify-between">
                 <p className={SHOWING_TEXT_CLASS}>{showingText}</p>
-                {!isMobile && !normalizedSearch && totalPages > 1 && (
+                {!isMobile && totalPages > 1 && (
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
